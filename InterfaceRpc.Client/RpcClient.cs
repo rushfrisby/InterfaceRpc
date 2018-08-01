@@ -10,7 +10,9 @@ namespace InterfaceRpc.Client
 	public class RpcClient<T> : DispatchProxy
 	{
 		private string _baseAddress;
-		private static ISerializer _serializer;
+		private ISerializer _serializer;
+		private Type _serializerType;
+		private MethodInfo _deserializeMethod;
 
 		public RpcClient()
 		{
@@ -91,6 +93,10 @@ namespace InterfaceRpc.Client
 			}
 			_serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
 			_baseAddress = baseAddress;
+
+			//cache reflection that we will need during Invoke
+			_serializerType = _serializer.GetType();
+			_deserializeMethod = _serializerType.GetMethod("Deserialize", new[] { typeof(byte[]) });
 		}
 
 		#endregion Private Methods
@@ -108,10 +114,7 @@ namespace InterfaceRpc.Client
 			var result = Post(url, arg);
 			if(result != null && method.ReturnType != typeof(void))
 			{
-				var serializerType = _serializer.GetType();
-				var deserializeMethods = serializerType.GetMethods();
-				var deserializeMethod = serializerType.GetMethod("Deserialize", new[] { typeof(byte[]) });
-				var genericDeserializeMethod = deserializeMethod.MakeGenericMethod(method.ReturnType);
+				var genericDeserializeMethod = _deserializeMethod.MakeGenericMethod(method.ReturnType);
 				return genericDeserializeMethod.Invoke(_serializer, new object[] { result });
 			}
 
