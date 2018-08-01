@@ -3,9 +3,15 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.27703.1
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InterfaceRpc.TestHost", "InterfaceRpc.TestHost\InterfaceRpc.TestHost.csproj", "{8B6E0D85-DF6A-4534-9399-D0685331CBEB}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "InterfaceRpc.Service", "InterfaceRpc.Service\InterfaceRpc.Service.csproj", "{E736E456-901A-4454-BE36-292145F7334B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InterfaceRpc", "InterfaceRpc\InterfaceRpc.csproj", "{DE04E7D4-67FC-46D1-9CF9-619FB91652DB}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InterfaceRpc.Client", "InterfaceRpc.Client\InterfaceRpc.Client.csproj", "{9D0A45A1-CD62-429A-83F3-2D3E3C299803}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "InterfaceRpcDemoService", "InterfaceRpcDemoService\InterfaceRpcDemoService.csproj", "{C5B63789-2195-48CD-98FE-12F50397EF83}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InterfaceRpcDemoClient", "InterfaceRpcDemoClient\InterfaceRpcDemoClient.csproj", "{938594C8-D42D-44AF-9426-958DC24EA43A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InterfaceRpcDemoShared", "InterfaceRpcDemoShared\InterfaceRpcDemoShared.csproj", "{5DAB6EC7-6425-42FA-BE6F-E64D383F2C30}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -13,14 +19,26 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{8B6E0D85-DF6A-4534-9399-D0685331CBEB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{8B6E0D85-DF6A-4534-9399-D0685331CBEB}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{8B6E0D85-DF6A-4534-9399-D0685331CBEB}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{8B6E0D85-DF6A-4534-9399-D0685331CBEB}.Release|Any CPU.Build.0 = Release|Any CPU
-		{DE04E7D4-67FC-46D1-9CF9-619FB91652DB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{DE04E7D4-67FC-46D1-9CF9-619FB91652DB}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{DE04E7D4-67FC-46D1-9CF9-619FB91652DB}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{DE04E7D4-67FC-46D1-9CF9-619FB91652DB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E736E456-901A-4454-BE36-292145F7334B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E736E456-901A-4454-BE36-292145F7334B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E736E456-901A-4454-BE36-292145F7334B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E736E456-901A-4454-BE36-292145F7334B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9D0A45A1-CD62-429A-83F3-2D3E3C299803}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9D0A45A1-CD62-429A-83F3-2D3E3C299803}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9D0A45A1-CD62-429A-83F3-2D3E3C299803}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9D0A45A1-CD62-429A-83F3-2D3E3C299803}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C5B63789-2195-48CD-98FE-12F50397EF83}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C5B63789-2195-48CD-98FE-12F50397EF83}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C5B63789-2195-48CD-98FE-12F50397EF83}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C5B63789-2195-48CD-98FE-12F50397EF83}.Release|Any CPU.Build.0 = Release|Any CPU
+		{938594C8-D42D-44AF-9426-958DC24EA43A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{938594C8-D42D-44AF-9426-958DC24EA43A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{938594C8-D42D-44AF-9426-958DC24EA43A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{938594C8-D42D-44AF-9426-958DC24EA43A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5DAB6EC7-6425-42FA-BE6F-E64D383F2C30}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5DAB6EC7-6425-42FA-BE6F-E64D383F2C30}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5DAB6EC7-6425-42FA-BE6F-E64D383F2C30}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5DAB6EC7-6425-42FA-BE6F-E64D383F2C30}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

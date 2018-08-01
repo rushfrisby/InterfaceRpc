@@ -2,7 +2,7 @@
 using System.IO;
 using System.Net;
 
-namespace InterfaceRpc
+namespace InterfaceRpc.Service
 {
 	internal class SerializationHelper
 	{

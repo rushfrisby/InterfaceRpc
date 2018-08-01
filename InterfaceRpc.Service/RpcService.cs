@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace InterfaceRpc
+namespace InterfaceRpc.Service
 {
 	public class RpcService<T> where T : class //would be nice to have "where T : interface" here
 	{

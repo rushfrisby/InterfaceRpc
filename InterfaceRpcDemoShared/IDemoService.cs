@@ -1,10 +1,12 @@
 ﻿using System;
 
-namespace InterfaceRpc.TestHost
+namespace InterfaceRpcDemoShared
 {
-	public interface IEchoService
+	public interface IDemoService
 	{
 		string Echo(string input);
+
+		Person EchoPerson(Person person);
 
 		DateTime GetDateTime();
 

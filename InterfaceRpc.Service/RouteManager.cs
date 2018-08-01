@@ -6,7 +6,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using SerializerDotNet;
 
-namespace InterfaceRpc
+namespace InterfaceRpc.Service
 {
 	internal class RouteManager<T> where T : class
 	{

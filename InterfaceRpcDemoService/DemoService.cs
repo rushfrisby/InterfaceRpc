@@ -1,13 +1,19 @@
-﻿using System;
+﻿using InterfaceRpcDemoShared;
+using System;
 using System.Threading;
 
-namespace InterfaceRpc.TestHost
+namespace InterfaceRpcDemoService
 {
-	public class EchoService : IEchoService
+	public class DemoService : IDemoService
 	{
 		public string Echo(string input)
 		{
 			return input;
+		}
+
+		public Person EchoPerson(Person person)
+		{
+			return person;
 		}
 
 		public DateTime GetDateTime()

@@ -1,4 +1,4 @@
-﻿namespace InterfaceRpc
+﻿namespace InterfaceRpc.Service
 {
     internal class RouteResponse
     {
