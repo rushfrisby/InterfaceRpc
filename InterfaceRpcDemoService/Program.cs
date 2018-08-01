@@ -12,7 +12,7 @@ namespace InterfaceRpcDemoService
 			rpcService.Start();
 
 			Console.WriteLine("RPC Demo Service is running - Press any key to stop.");
-			Console.Read();
+			Console.ReadKey();
 
 			rpcService.Stop();
 		}

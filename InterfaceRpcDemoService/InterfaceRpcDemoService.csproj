@@ -6,11 +6,11 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-	  <None Remove="settings.json" />
+	  <None Remove="rpcsettings.json" />
 	</ItemGroup>
 
 	<ItemGroup>
-	  <Content Include="settings.json">
+	  <Content Include="rpcsettings.json">
 	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 	  </Content>
 	</ItemGroup>

@@ -10,7 +10,8 @@ namespace InterfaceRpcDemoClient
 	{
 		static void Main(string[] args)
 		{
-			var client = RpcClient<IDemoService>.Create(new JsonSerializer(), "http://localhost:6000/");
+			//var client = RpcClient<IDemoService>.Create(new JsonSerializer(), "http://localhost:6000/");
+			var client = RpcClient<IDemoService>.Create(new ProtobufSerializer(), "http://localhost:6000/");
 
 			Console.WriteLine("RPC Demo Client is waiting - Press any key to begin.");
 			Console.ReadKey();
@@ -23,7 +24,7 @@ namespace InterfaceRpcDemoClient
 
 			var sw = new Stopwatch();
 			sw.Start();
-			client.Wait(3000);
+			client.Wait(2000);
 			sw.Stop();
 			Console.WriteLine($"Waited: {sw.Elapsed}");
 

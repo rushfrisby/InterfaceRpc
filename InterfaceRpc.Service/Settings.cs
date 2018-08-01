@@ -7,6 +7,8 @@ namespace InterfaceRpc.Service
 {
 	public class Settings
 	{
+		private const string SettingsFileName = "rpcsettings.json";
+
 		private static readonly Lazy<Settings> lazy = new Lazy<Settings>(LoadSettings);
 
 		public static Settings Instance { get { return lazy.Value; } }
@@ -17,7 +19,7 @@ namespace InterfaceRpc.Service
 
 		private static Settings LoadSettings()
 		{
-			var json = File.ReadAllText(Path.Combine(Directory.GetCurrentDirectory(), "settings.json"));
+			var json = File.ReadAllText(Path.Combine(Directory.GetCurrentDirectory(), SettingsFileName));
 			return JsonConvert.DeserializeObject<Settings>(json);
 		}
 
