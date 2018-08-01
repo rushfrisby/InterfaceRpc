@@ -9,7 +9,6 @@ namespace InterfaceRpc.Client
 {
 	public class RpcClient<T> : DispatchProxy
 	{
-		private const int _blockSize = 4096;
 		private string _baseAddress;
 		private static ISerializer _serializer;
 
@@ -22,18 +21,6 @@ namespace InterfaceRpc.Client
 		}
 
 		#region Private Methods
-
-		//private TResult Post<TResult>(string url)
-		//{
-		//	var result = Post<object>(url, null);
-		//	return _serializer.Deserialize<TResult>(result);
-		//}
-
-		//private TResult Post<TSource, TResult>(string url, TSource source)
-		//{
-		//	var result = Post(url, source);
-		//	return _serializer.Deserialize<TResult>(result);
-		//}
 
 		private byte[] Post<TSource>(string url, TSource source)
 		{
@@ -77,7 +64,7 @@ namespace InterfaceRpc.Client
 				{
 					errorMessage = reader.ReadToEnd();
 				}
-				throw new WebException("The Security API threw an exception: " + errorMessage);
+				throw new WebException("Service threw an exception: " + errorMessage);
 			}
 
 			return result;
@@ -94,6 +81,16 @@ namespace InterfaceRpc.Client
 				part = part.Substring(1, part.Length - 1);
 			}
 			return baseUrl + "/" + part;
+		}
+
+		private void SetParameters(ISerializer serializer, string baseAddress)
+		{
+			if (string.IsNullOrWhiteSpace(baseAddress))
+			{
+				throw new ArgumentNullException(nameof(baseAddress));
+			}
+			_serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
+			_baseAddress = baseAddress;
 		}
 
 		#endregion Private Methods
@@ -119,16 +116,6 @@ namespace InterfaceRpc.Client
 			}
 
 			return null;
-		}
-
-		private void SetParameters(ISerializer serializer, string baseAddress)
-		{
-			if (string.IsNullOrWhiteSpace(baseAddress))
-			{
-				throw new ArgumentNullException(nameof(baseAddress));
-			}
-			_serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
-			_baseAddress = baseAddress;
 		}
 
 		public static T Create(ISerializer serializer, string baseAddress)
