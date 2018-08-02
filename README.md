@@ -13,7 +13,7 @@ You can create and run an RPC-HTTP based service, like so:
 var svc = new RpcService<IEchoService>(new EchoService());
 svc.Start();
 ```
-Then make HTTP POSTs to `http://localhost:6000/Echo`
+Then make HTTP POSTs to `http://localhost:6000/Echo` (domain and port are configurable)
 
 You can make a client to do this for you, like so:
 ```csharp
