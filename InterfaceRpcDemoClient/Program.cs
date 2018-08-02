@@ -10,11 +10,14 @@ namespace InterfaceRpcDemoClient
 	{
 		static void Main(string[] args)
 		{
-			//var client = RpcClient<IDemoService>.Create(new JsonSerializer(), "http://localhost:6000/");
-			var client = RpcClient<IDemoService>.Create(new ProtobufSerializer(), "http://localhost:6000/");
+			var client = RpcClient<IDemoService>.Create(new JsonSerializer(), "http://localhost:6000/");
+			//var client = RpcClient<IDemoService>.Create(new ProtobufSerializer(), "http://localhost:6000/");
 
 			Console.WriteLine("RPC Demo Client is waiting - Press any key to begin.");
 			Console.ReadKey();
+
+			Console.WriteLine(client.GetAge("Rush", 36));
+			Console.WriteLine(client.GetPersonAge(new Person { Id=1, FirstName="Rush", LastName="Frisby" }, 36));
 
 			var echo = client.Echo("hello world");
 			Console.WriteLine($"Echo: {echo}");

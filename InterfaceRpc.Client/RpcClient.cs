@@ -7,7 +7,7 @@ using System.Reflection;
 
 namespace InterfaceRpc.Client
 {
-	public class RpcClient<T> : DispatchProxy
+	public class RpcClient<T> : DispatchProxy where T : class
 	{
 		private string _baseAddress;
 		private ISerializer _serializer;
@@ -24,7 +24,7 @@ namespace InterfaceRpc.Client
 
 		#region Private Methods
 
-		private byte[] Post<TSource>(string url, TSource source)
+		private byte[] Post(string url, object[] source)
 		{
 			var request = (HttpWebRequest)WebRequest.Create(url);
 
@@ -104,14 +104,7 @@ namespace InterfaceRpc.Client
 		protected override object Invoke(MethodInfo method, object[] args)
 		{
 			var url = AddUrlPart(_baseAddress, method.Name);
-
-			object arg = null;
-			if(args != null && args.Any())
-			{
-				arg = args[0];
-			}
-
-			var result = Post(url, arg);
+			var result = Post(url, args);
 			if(result != null && method.ReturnType != typeof(void))
 			{
 				var genericDeserializeMethod = _deserializeMethod.MakeGenericMethod(method.ReturnType);

@@ -18,5 +18,11 @@ namespace InterfaceRpc.Service
 			var serializer = Serializer.GetSerializerFor(context.Request.ContentType);
 			return serializer.Deserialize<TResult>(result);
 		}
+
+		// There are no references to this method because it is called via reflection. Do not remove!
+		public static T Cast<T>(object o)
+		{
+			return (T)o;
+		}
 	}
 }

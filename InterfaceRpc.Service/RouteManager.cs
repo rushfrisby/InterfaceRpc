@@ -10,8 +10,6 @@ namespace InterfaceRpc.Service
 {
 	internal class RouteManager<T> where T : class
 	{
-		public MethodInfo[] InterfaceMethods { get { return _interfaceMethods; } }
-
 		private readonly MethodInfo[] _interfaceMethods;
 		private readonly Type _interfaceType;
 		private readonly T _implementation;
@@ -35,25 +33,68 @@ namespace InterfaceRpc.Service
 		private async Task<RouteResponse> MethodHandler(HttpListenerContext context)
 		{
 			var routeName = context.Request.RawUrl.Substring(1, context.Request.RawUrl.Length - 1);
-			var method = InterfaceMethods.FirstOrDefault(x => x.Name.Equals(routeName, StringComparison.OrdinalIgnoreCase));
+			var method = _interfaceMethods.FirstOrDefault(x => x.Name.Equals(routeName, StringComparison.OrdinalIgnoreCase));
 			if (method == null)
 			{
 				throw new NullReferenceException(string.Format("Could not find method corresponding to {0}", context.Request.RawUrl));
 			}
 
-			object[] parameterValues = null;
+			var parameterValues = new List<object>();
 			var methodParameters = method.GetParameters();
+			var serializer = Serializer.GetSerializerFor(context.Request.ContentType);
 
 			if (methodParameters.Any())
 			{
-				//Hard coded for only 1 parameter per method (forces interfaces to follow request/response pattern)
-				var greGenericMethod = _getRequestEntityMethod.MakeGenericMethod(methodParameters.First().ParameterType);
+				Type genericMethodType; ;
+				//if (methodParameters.Count() == 1)
+				//{
+				//	genericMethodType = methodParameters.First().ParameterType;
+				//}
+				//else
+				//{
+					genericMethodType = typeof(object[]);
+				//}
+				var greGenericMethod = _getRequestEntityMethod.MakeGenericMethod(genericMethodType);
 				var entity = greGenericMethod.Invoke(null, new object[] { context });
-				parameterValues = new object[] { entity };
+
+				object[] tempParameterValues = null;
+				if (entity != null && entity.GetType() == typeof(object[]))
+				{
+					tempParameterValues = (object[])entity;
+				}
+				else
+				{
+					tempParameterValues = new object[] { entity };
+				}
+
+				for(var i = 0; i < methodParameters.Count(); i++)
+				{
+					var methodParameter = methodParameters[i];
+					var tempParameterValueType = tempParameterValues[i].GetType();
+					if (methodParameter.ParameterType != tempParameterValueType)
+					{
+						if (tempParameterValueType.IsClass)
+						{
+							//ugly but it works
+							var reserialized = await serializer.SerializeAsync(tempParameterValues[i]);
+							var deserializeMethod = serializer.GetType().GetMethod("Deserialize", new[] { typeof(byte[]) });
+							var genericDeserializeMethod = deserializeMethod.MakeGenericMethod(methodParameter.ParameterType);
+							entity = genericDeserializeMethod.Invoke(serializer, new object[] { reserialized });
+							parameterValues.Add(entity);
+						}
+						else
+						{
+							parameterValues.Add(Convert.ChangeType(tempParameterValues[i], methodParameter.ParameterType));
+						}
+					}
+					else
+					{
+						parameterValues.Add(tempParameterValues[i]);
+					}
+				}
 			}
 
-			var result = method.Invoke(_implementation, parameterValues);
-			var serializer = Serializer.GetSerializerFor(context.Request.ContentType);
+			var result = method.Invoke(_implementation, parameterValues.ToArray());
 
 			var response = new RouteResponse(serializer.DefaultContentType);
 			if (method.ReturnType != typeof(void))
