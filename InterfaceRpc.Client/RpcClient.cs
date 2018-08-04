@@ -14,6 +14,9 @@ namespace InterfaceRpc.Client
 		private Type _serializerType;
 		private MethodInfo _deserializeMethod;
 
+		private static Type[] _deserializeMethodTypeSelector = new[] { typeof(byte[]) };
+		private const string _deserializeMethodName = "Deserialize";
+
 		public RpcClient()
 		{
 			if (!typeof(T).IsInterface)
@@ -24,9 +27,11 @@ namespace InterfaceRpc.Client
 
 		#region Private Methods
 
-		private byte[] Post(string url, object[] source)
+		private byte[] Post<TSource>(string url, TSource source)
 		{
 			var request = (HttpWebRequest)WebRequest.Create(url);
+
+			
 
 			byte[] data;
 			if (source != null)
@@ -85,18 +90,18 @@ namespace InterfaceRpc.Client
 			return baseUrl + "/" + part;
 		}
 
-		private void SetParameters(ISerializer serializer, string baseAddress)
+		private void SetParameters(string baseAddress, ISerializer serializer = null)
 		{
 			if (string.IsNullOrWhiteSpace(baseAddress))
 			{
 				throw new ArgumentNullException(nameof(baseAddress));
 			}
-			_serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
+			_serializer = serializer ?? new JsonSerializer();
 			_baseAddress = baseAddress;
 
 			//cache reflection that we will need during Invoke
 			_serializerType = _serializer.GetType();
-			_deserializeMethod = _serializerType.GetMethod("Deserialize", new[] { typeof(byte[]) });
+			_deserializeMethod = _serializerType.GetMethod(_deserializeMethodName, _deserializeMethodTypeSelector);
 		}
 
 		#endregion Private Methods
@@ -104,21 +109,50 @@ namespace InterfaceRpc.Client
 		protected override object Invoke(MethodInfo method, object[] args)
 		{
 			var url = AddUrlPart(_baseAddress, method.Name);
-			var result = Post(url, args);
-			if(result != null && method.ReturnType != typeof(void))
+			byte[] result = null;
+
+			#region Test
+			if(args.Length == 0)
+			{
+				result = Post<object>(url, null);
+			}
+			else if(args.Length == 1)
+			{
+				result = Post(url, args[0]);
+			}
+			else
+			{
+				result = Post(url, GetTuple(method, args));
+			}
+			#endregion
+
+			//result = Post(url, args);
+			if (result != null && method.ReturnType != typeof(void))
 			{
 				var genericDeserializeMethod = _deserializeMethod.MakeGenericMethod(method.ReturnType);
 				return genericDeserializeMethod.Invoke(_serializer, new object[] { result });
 			}
-
 			return null;
 		}
 
-		public static T Create(ISerializer serializer, string baseAddress)
+		public static T Create(string baseAddress, ISerializer serializer = null)
 		{
 			object proxy = Create<T, RpcClient<T>>();
-			((RpcClient<T>)proxy).SetParameters(serializer, baseAddress);
+			((RpcClient<T>)proxy).SetParameters(baseAddress, serializer);
 			return (T)proxy;
+		}
+
+		public static object GetTuple(MethodInfo method, object[] args)
+		{
+			var types = method.GetParameters().Select(x => x.ParameterType).ToArray();
+			var valueTupleCreateMethod = typeof(ValueTuple).GetMethods().FirstOrDefault(x => x.Name == "Create" && x.GetParameters().Count() == args.Length);
+			if(valueTupleCreateMethod == null)
+			{
+				//could happen if there are more than 8 arguments
+				throw new ApplicationException("Cannot serialize this method's arguments. Try cutting the number of arguments down to 8 or less.");
+			}
+			var genericValueTupleCreateMethod = valueTupleCreateMethod.MakeGenericMethod(types);
+			return genericValueTupleCreateMethod.Invoke(null, args);
 		}
 	}
 }

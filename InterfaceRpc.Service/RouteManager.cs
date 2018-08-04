@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -45,52 +46,20 @@ namespace InterfaceRpc.Service
 
 			if (methodParameters.Any())
 			{
-				Type genericMethodType; ;
-				//if (methodParameters.Count() == 1)
-				//{
-				//	genericMethodType = methodParameters.First().ParameterType;
-				//}
-				//else
-				//{
-					genericMethodType = typeof(object[]);
-				//}
-				var greGenericMethod = _getRequestEntityMethod.MakeGenericMethod(genericMethodType);
-				var entity = greGenericMethod.Invoke(null, new object[] { context });
-
-				object[] tempParameterValues = null;
-				if (entity != null && entity.GetType() == typeof(object[]))
+				object entity = null;
+				if (methodParameters.Count() == 1)
 				{
-					tempParameterValues = (object[])entity;
+					var greGenericMethod = _getRequestEntityMethod.MakeGenericMethod(methodParameters.First().ParameterType);
+					entity = greGenericMethod.Invoke(null, new object[] { context });
+					parameterValues.Add(entity);
 				}
 				else
 				{
-					tempParameterValues = new object[] { entity };
-				}
-
-				for(var i = 0; i < methodParameters.Count(); i++)
-				{
-					var methodParameter = methodParameters[i];
-					var tempParameterValueType = tempParameterValues[i].GetType();
-					if (methodParameter.ParameterType != tempParameterValueType)
-					{
-						if (tempParameterValueType.IsClass)
-						{
-							//ugly but it works
-							var reserialized = await serializer.SerializeAsync(tempParameterValues[i]);
-							var deserializeMethod = serializer.GetType().GetMethod("Deserialize", new[] { typeof(byte[]) });
-							var genericDeserializeMethod = deserializeMethod.MakeGenericMethod(methodParameter.ParameterType);
-							entity = genericDeserializeMethod.Invoke(serializer, new object[] { reserialized });
-							parameterValues.Add(entity);
-						}
-						else
-						{
-							parameterValues.Add(Convert.ChangeType(tempParameterValues[i], methodParameter.ParameterType));
-						}
-					}
-					else
-					{
-						parameterValues.Add(tempParameterValues[i]);
-					}
+					var types = method.GetParameters().Select(x => x.ParameterType).ToArray();
+					var valueTupleType = GetTupleType(types);
+					var greGenericMethod = _getRequestEntityMethod.MakeGenericMethod(valueTupleType);
+					entity = greGenericMethod.Invoke(null, new object[] { context });
+					parameterValues.AddRange(TupleToEnumerable(entity));
 				}
 			}
 
@@ -102,6 +71,40 @@ namespace InterfaceRpc.Service
 				response.Content = await serializer.SerializeAsync(result);
 			}
 			return response;
+		}
+
+		private static IEnumerable<object> TupleToEnumerable(object tuple)
+		{
+			var tupleType = tuple.GetType();
+			var tupleTypeProperties = tupleType.GetRuntimeFields();
+			var values = tupleTypeProperties.Select(x => x.GetValue(tuple));
+			return values;
+		}
+
+		public static Type GetTupleType(Type[] types)
+		{
+			var valueTupleCreateMethod = typeof(ValueTuple).GetMethods().FirstOrDefault(x => x.Name == "Create" && x.GetParameters().Count() == types.Length);
+			if (valueTupleCreateMethod == null)
+			{
+				//could happen if there are more than 8 arguments
+				throw new ApplicationException("Cannot deserialize this method's arguments. Try cutting the number of arguments down to 8 or less.");
+			}
+			var genericValueTupleCreateMethod = valueTupleCreateMethod.MakeGenericMethod(types);
+			var dummyValues = new List<object>();
+			foreach (var type in types)
+			{
+				if (type.IsValueType)
+				{
+					dummyValues.Add(Activator.CreateInstance(type));
+
+				}
+				else
+				{
+					dummyValues.Add(null);
+				}
+			}
+			var valueTuple = genericValueTupleCreateMethod.Invoke(null, dummyValues.ToArray());
+			return valueTuple.GetType();
 		}
 
 		public bool ContainsHandler(string routeName)
