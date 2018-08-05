@@ -2,7 +2,6 @@
 Turn your interface into an RPC service!
 
 | InterfaceRpc.Client | [![NuGet Status](http://img.shields.io/nuget/v/InterfaceRpc.Client.svg?style=flat)](https://www.nuget.org/packages/InterfaceRpc.Client/) |
-| --- | --- |
 | InterfaceRpc.Service | [![NuGet Status](http://img.shields.io/nuget/v/InterfaceRpc.Service.svg?style=flat)](https://www.nuget.org/packages/InterfaceRpc.Service/) |
 
 Given the interface:
