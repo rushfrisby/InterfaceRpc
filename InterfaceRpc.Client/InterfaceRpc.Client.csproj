@@ -2,7 +2,19 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <Version>1.0.1</Version>
+    <Version>1.0.2</Version>
+    <Authors>Rush Frisby</Authors>
+    <Company></Company>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
+    <Description>Creates an RPC client based on an interface</Description>
+    <PackageLicenseUrl>https://github.com/rushfrisby/InterfaceRpc/blob/master/LICENSE</PackageLicenseUrl>
+    <PackageProjectUrl>https://github.com/rushfrisby/InterfaceRpc</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/rushfrisby/InterfaceRpc</RepositoryUrl>
+    <RepositoryType></RepositoryType>
+    <PackageTags>interface rpc json protobuf client</PackageTags>
+    <AssemblyVersion>1.0.2.0</AssemblyVersion>
+    <FileVersion>1.0.2.0</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>

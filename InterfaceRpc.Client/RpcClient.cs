@@ -31,8 +31,6 @@ namespace InterfaceRpc.Client
 		{
 			var request = (HttpWebRequest)WebRequest.Create(url);
 
-			
-
 			byte[] data;
 			if (source != null)
 			{
@@ -111,7 +109,6 @@ namespace InterfaceRpc.Client
 			var url = AddUrlPart(_baseAddress, method.Name);
 			byte[] result = null;
 
-			#region Test
 			if(args.Length == 0)
 			{
 				result = Post<object>(url, null);
@@ -124,9 +121,7 @@ namespace InterfaceRpc.Client
 			{
 				result = Post(url, GetTuple(method, args));
 			}
-			#endregion
 
-			//result = Post(url, args);
 			if (result != null && method.ReturnType != typeof(void))
 			{
 				var genericDeserializeMethod = _deserializeMethod.MakeGenericMethod(method.ReturnType);

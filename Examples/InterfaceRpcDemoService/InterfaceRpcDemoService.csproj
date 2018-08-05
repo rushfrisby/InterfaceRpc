@@ -16,8 +16,8 @@
 	</ItemGroup>
 
 	<ItemGroup>
-	  <ProjectReference Include="..\InterfaceRpc.Client\InterfaceRpc.Client.csproj" />
-	  <ProjectReference Include="..\InterfaceRpc.Service\InterfaceRpc.Service.csproj" />
+	  <ProjectReference Include="..\..\InterfaceRpc.Client\InterfaceRpc.Client.csproj" />
+	  <ProjectReference Include="..\..\InterfaceRpc.Service\InterfaceRpc.Service.csproj" />
 	  <ProjectReference Include="..\InterfaceRpcDemoShared\InterfaceRpcDemoShared.csproj" />
 	</ItemGroup>
 
