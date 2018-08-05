@@ -17,8 +17,8 @@ Then make HTTP POSTs to `http://localhost:6000/Echo` (domain and port are config
 
 You can make a client to do this for you, like so:
 ```csharp
-var client = RpcClient<IEchoService>.Create(JsonSerializer(), "http://localhost:6000/");
+var client = RpcClient<IEchoService>.Create("http://localhost:6000/");
 var result = client.Echo("hello");
 ```
 
-You can use any of the serializers available in [SerializerDotNet](https://www.nuget.org/packages/SerializerDotNet).
+You can use any of the serializers available in [SerializerDotNet](https://www.nuget.org/packages/SerializerDotNet) - currently JSON and Protobuf
