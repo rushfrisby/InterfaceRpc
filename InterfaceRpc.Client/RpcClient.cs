@@ -63,6 +63,10 @@ namespace InterfaceRpc.Client
 			}
 			catch (WebException wex)
 			{
+				if(wex.Response == null)
+				{
+					throw;
+				}
 				string errorMessage;
 				using (var stream = wex.Response.GetResponseStream())
 				using (var reader = new StreamReader(stream))
