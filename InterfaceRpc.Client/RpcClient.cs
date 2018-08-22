@@ -19,6 +19,7 @@ namespace InterfaceRpc.Client
 		private const string _deserializeMethodName = "Deserialize";
 
 		private static IDictionary<int, MethodInfo> _cachedGenericValueTupleCreateMethods = new Dictionary<int, MethodInfo>();
+		private static IDictionary<int, MethodInfo> _cachedGenericDeserializeMethods = new Dictionary<int, MethodInfo>();
 		private static readonly object _locker = new object();
 
 		public RpcClient()
@@ -132,7 +133,27 @@ namespace InterfaceRpc.Client
 
 			if (result != null && method.ReturnType != typeof(void))
 			{
-				var genericDeserializeMethod = _deserializeMethod.MakeGenericMethod(method.ReturnType);
+				MethodInfo genericDeserializeMethod;
+				var cacheKey = method.MetadataToken;
+				if (!_cachedGenericDeserializeMethods.ContainsKey(cacheKey))
+				{
+					lock (_locker)
+					{
+						if (!_cachedGenericDeserializeMethods.ContainsKey(cacheKey))
+						{
+							genericDeserializeMethod = _deserializeMethod.MakeGenericMethod(method.ReturnType);
+							_cachedGenericDeserializeMethods.Add(cacheKey, genericDeserializeMethod);
+						}
+						else
+						{
+							genericDeserializeMethod = _cachedGenericDeserializeMethods[cacheKey];
+						}
+					}
+				}
+				else
+				{
+					genericDeserializeMethod = _cachedGenericDeserializeMethods[cacheKey];
+				}
 				return genericDeserializeMethod.Invoke(_serializer, new object[] { result });
 			}
 			return null;
@@ -148,11 +169,13 @@ namespace InterfaceRpc.Client
 		public static object GetTuple(MethodInfo method, object[] args)
 		{
 			MethodInfo genericValueTupleCreateMethod;
-			if (!_cachedGenericValueTupleCreateMethods.ContainsKey(method.MetadataToken))
+			var cacheKey = method.MetadataToken;
+
+			if (!_cachedGenericValueTupleCreateMethods.ContainsKey(cacheKey))
 			{
 				lock(_locker)
 				{
-					if (!_cachedGenericValueTupleCreateMethods.ContainsKey(method.MetadataToken))
+					if (!_cachedGenericValueTupleCreateMethods.ContainsKey(cacheKey))
 					{
 						var types = method.GetParameters().Select(x => x.ParameterType).ToArray();
 						var valueTupleCreateMethod = typeof(ValueTuple).GetMethods().FirstOrDefault(x => x.Name == "Create" && x.GetParameters().Count() == args.Length);
@@ -162,17 +185,17 @@ namespace InterfaceRpc.Client
 							throw new ApplicationException("Cannot serialize this method's arguments. Try cutting the number of arguments down to 8 or less.");
 						}
 						genericValueTupleCreateMethod = valueTupleCreateMethod.MakeGenericMethod(types);
-						_cachedGenericValueTupleCreateMethods.Add(method.MetadataToken, genericValueTupleCreateMethod);
+						_cachedGenericValueTupleCreateMethods.Add(cacheKey, genericValueTupleCreateMethod);
 					}
 					else
 					{
-						genericValueTupleCreateMethod = _cachedGenericValueTupleCreateMethods[method.MetadataToken];
+						genericValueTupleCreateMethod = _cachedGenericValueTupleCreateMethods[cacheKey];
 					}
 				}
 			}
 			else
 			{
-				genericValueTupleCreateMethod = _cachedGenericValueTupleCreateMethods[method.MetadataToken];
+				genericValueTupleCreateMethod = _cachedGenericValueTupleCreateMethods[cacheKey];
 			}
 			
 			return genericValueTupleCreateMethod.Invoke(null, args);

@@ -19,7 +19,12 @@ namespace InterfaceRpc.Service
 
 		private static Settings LoadSettings()
 		{
-			var json = File.ReadAllText(Path.Combine(Directory.GetCurrentDirectory(), SettingsFileName));
+			var settingsFile = Path.Combine(Directory.GetCurrentDirectory(), SettingsFileName);
+			if(!File.Exists(settingsFile))
+			{
+				throw new FileNotFoundException("Settings file not found", settingsFile);
+			}
+			var json = File.ReadAllText(settingsFile);
 			return JsonConvert.DeserializeObject<Settings>(json);
 		}
 
