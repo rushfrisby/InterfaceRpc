@@ -14,8 +14,9 @@ namespace InterfaceRpc.Service
 		private readonly RouteManager<T> _routeManager;
 		private CancellationTokenSource _cancellationTokenSource;
 		private Task _listenTask;
+		private readonly RpcSettings _settings;
 
-		public RpcService(T implementation)
+		public RpcService(T implementation, RpcSettings settings = null)
 		{
 			if(!typeof(T).IsInterface)
 			{
@@ -25,14 +26,17 @@ namespace InterfaceRpc.Service
 			{
 				throw new PlatformNotSupportedException("Needs Windows XP SP2, Server 2003 or later.");
 			}
-			if (Settings.Instance.WebServerPrefixes == null || !Settings.Instance.WebServerPrefixes.Any())
+
+			_settings = settings ?? RpcSettings.Load();
+
+			if (_settings.WebServerPrefixes == null || !_settings.WebServerPrefixes.Any())
 			{
 				throw new ApplicationException("No web server prefixes found in settings.");
 			}
 
 			_routeManager = new RouteManager<T>(implementation);
 
-			foreach (var s in Settings.Instance.WebServerPrefixes)
+			foreach (var s in _settings.WebServerPrefixes)
 			{
 				_listener.Prefixes.Add(s);
 			}
@@ -47,7 +51,7 @@ namespace InterfaceRpc.Service
 
 			_listenTask = Task.Run(async () =>
 			{
-				var sem = new Semaphore(Settings.Instance.MaxConnections, Settings.Instance.MaxConnections);
+				var sem = new Semaphore(_settings.MaxConnections, _settings.MaxConnections);
 
 				while (_listener.IsListening)
 				{

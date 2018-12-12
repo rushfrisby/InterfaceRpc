@@ -70,7 +70,7 @@ namespace InterfaceRpc.Client
 			{
 				if(wex.Response == null)
 				{
-					throw;
+					throw new WebException($"An exception occurred while requesting {url}", wex);
 				}
 				string errorMessage;
 				using (var stream = wex.Response.GetResponseStream())
@@ -78,7 +78,7 @@ namespace InterfaceRpc.Client
 				{
 					errorMessage = reader.ReadToEnd();
 				}
-				throw new WebException("Service threw an exception: " + errorMessage);
+				throw new WebException("Service threw an exception while requesting {url}: " + errorMessage, wex);
 			}
 
 			return result;
