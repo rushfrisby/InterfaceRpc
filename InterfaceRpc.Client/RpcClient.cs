@@ -17,6 +17,7 @@ namespace InterfaceRpc.Client
 
 		private static Type[] _deserializeMethodTypeSelector = new[] { typeof(byte[]) };
 		private const string _deserializeMethodName = "Deserialize";
+		private readonly List<RpcClientExtension> _extensions;
 
 		private static IDictionary<int, MethodInfo> _cachedGenericValueTupleCreateMethods = new Dictionary<int, MethodInfo>();
 		private static IDictionary<int, MethodInfo> _cachedGenericDeserializeMethods = new Dictionary<int, MethodInfo>();
@@ -28,6 +29,7 @@ namespace InterfaceRpc.Client
 			{
 				throw new ApplicationException($"{typeof(T).Name} is not an interface. The type of T in RpcClient<T> must be an interface.");
 			}
+			_extensions = new List<RpcClientExtension>();
 		}
 
 		#region Private Methods
@@ -97,14 +99,15 @@ namespace InterfaceRpc.Client
 			return baseUrl + "/" + part;
 		}
 
-		private void SetParameters(string baseAddress, ISerializer serializer = null)
+		private void SetParameters(RpcClientOptions options)
 		{
-			if (string.IsNullOrWhiteSpace(baseAddress))
+			if (string.IsNullOrWhiteSpace(options.BaseAddress))
 			{
-				throw new ArgumentNullException(nameof(baseAddress));
+				throw new ArgumentNullException(nameof(options.BaseAddress));
 			}
-			_serializer = serializer ?? new JsonSerializer();
-			_baseAddress = baseAddress;
+			_serializer = options.Serializer ?? new JsonSerializer();
+			_baseAddress = options.BaseAddress;
+			_extensions.AddRange(options.Extensions);
 
 			//cache reflection that we will need during Invoke
 			_serializerType = _serializer.GetType();
@@ -116,22 +119,35 @@ namespace InterfaceRpc.Client
 		protected override object Invoke(MethodInfo method, object[] args)
 		{
 			var url = AddUrlPart(_baseAddress, method.Name);
-			byte[] result = null;
+			byte[] response = null;
 
-			if(args.Length == 0)
+			var requestInfo = new RpcClientRequestInfo
 			{
-				result = Post<object>(url, null);
+				Arguments = args,
+				BaseAddress = _baseAddress,
+				MethodName = method.Name
+			};
+
+			foreach (var extension in _extensions)
+			{
+				extension.PreSendRequestAction?.Invoke(requestInfo);
+			}
+
+			if (args.Length == 0)
+			{
+				response = Post<object>(url, null);
 			}
 			else if(args.Length == 1)
 			{
-				result = Post(url, args[0]);
+				response = Post(url, args[0]);
 			}
 			else
 			{
-				result = Post(url, GetTuple(method, args));
+				response = Post(url, GetTuple(method, args));
 			}
 
-			if (result != null && method.ReturnType != typeof(void))
+			object result = null;
+			if (response != null && method.ReturnType != typeof(void))
 			{
 				MethodInfo genericDeserializeMethod;
 				var cacheKey = method.MetadataToken;
@@ -154,15 +170,24 @@ namespace InterfaceRpc.Client
 				{
 					genericDeserializeMethod = _cachedGenericDeserializeMethods[cacheKey];
 				}
-				return genericDeserializeMethod.Invoke(_serializer, new object[] { result });
+				result = genericDeserializeMethod.Invoke(_serializer, new object[] { response });
 			}
-			return null;
+
+			foreach (var extension in _extensions)
+			{
+				extension.PostReceiveResponseAction?.Invoke(new RpcClientResponseInfo(requestInfo)
+				{
+					Result = result
+				});
+			}
+
+			return result;
 		}
 
-		public static T Create(string baseAddress, ISerializer serializer = null)
+		public static T Create(RpcClientOptions options)
 		{
 			object proxy = Create<T, RpcClient<T>>();
-			((RpcClient<T>)proxy).SetParameters(baseAddress, serializer);
+			((RpcClient<T>)proxy).SetParameters(options);
 			return (T)proxy;
 		}
 

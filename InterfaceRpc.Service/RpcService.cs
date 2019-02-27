@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Text;
@@ -15,6 +16,7 @@ namespace InterfaceRpc.Service
 		private CancellationTokenSource _cancellationTokenSource;
 		private Task _listenTask;
 		private readonly RpcSettings _settings;
+		private readonly List<RpcServiceExtension> _extensions;
 
 		public RpcService(T implementation, RpcSettings settings = null)
 		{
@@ -42,6 +44,7 @@ namespace InterfaceRpc.Service
 			}
 
 			_listener.IgnoreWriteExceptions = true;
+			_extensions = new List<RpcServiceExtension>();
 		}
 
 		public void Start()
@@ -51,48 +54,57 @@ namespace InterfaceRpc.Service
 
 			_listenTask = Task.Run(async () =>
 			{
-				var sem = new Semaphore(_settings.MaxConnections, _settings.MaxConnections);
-
-				while (_listener.IsListening)
+				using (var sem = new Semaphore(_settings.MaxConnections, _settings.MaxConnections))
 				{
-					sem.WaitOne();
-					try
+					while (_listener.IsListening)
 					{
-						await _listener.GetContextAsync().ContinueWith(async (t) =>
+						sem.WaitOne();
+						try
 						{
-							sem.Release();
-							var context = await t;
-							Exception handlerException = null;
-							try
+							await _listener.GetContextAsync().ContinueWith(async (t) =>
 							{
-								await HandleRequest(context);
-							}
-							catch (Exception ex)
-							{
-								handlerException = ex;
-							}
-							if (handlerException != null)
-							{
-								await WriteInternalServerErrorAsync(handlerException.Message, context);
-							}
-							if (context != null && context.Response.OutputStream != null)
-							{
-								context.Response.OutputStream.Close();
-							}
-						});
-					}
-					catch (Exception ex)
-					{
-						//connection aborted?
-						//TODO: log ex
+								sem.Release();
+								var context = await t;
+								Exception handlerException = null;
+								try
+								{
+									foreach (var extension in _extensions)
+									{
+										if (await extension.PreHandleRequestAction?.Invoke(context))
+										{
+											return;
+										}
+									}
+
+									await HandleRequest(context);
+
+									foreach (var extension in _extensions)
+									{
+										await extension.PostHandleRequestAction?.Invoke(context);
+									}
+								}
+								catch (Exception ex)
+								{
+									handlerException = ex;
+								}
+								if (handlerException != null)
+								{
+									await WriteInternalServerErrorAsync(handlerException.Message, context);
+								}
+								if (context != null && context.Response.OutputStream != null)
+								{
+									context.Response.OutputStream.Close();
+								}
+							});
+						}
+						catch (Exception ex)
+						{
+							//connection aborted?
+							//TODO: log ex
+						}
 					}
 				}
-
-				sem.Dispose();
-
 			}, _cancellationTokenSource.Token);
-
-			
 		}
 
 		private async Task HandleRequest(HttpListenerContext context)
@@ -192,6 +204,12 @@ namespace InterfaceRpc.Service
 				}
 				_listener.Close();
 			}
+		}
+
+		public RpcService<T> AddExtension(RpcServiceExtension extension)
+		{
+			_extensions.Add(extension);
+			return this;
 		}
 	}
 }
