@@ -64,36 +64,38 @@ namespace InterfaceRpc.Service
 							await _listener.GetContextAsync().ContinueWith(async (t) =>
 							{
 								sem.Release();
-								var context = await t;
-								Exception handlerException = null;
 								try
 								{
-									foreach (var extension in _extensions)
+									var context = await t;
+									try
 									{
-										if (await extension.PreHandleRequestAction?.Invoke(context))
+										foreach (var extension in _extensions)
 										{
-											return;
+											if (await extension.PreHandleRequestAction?.Invoke(context))
+											{
+												return;
+											}
+										}
+
+										await HandleRequest(context);
+
+										foreach (var extension in _extensions)
+										{
+											await extension.PostHandleRequestAction?.Invoke(context);
 										}
 									}
-
-									await HandleRequest(context);
-
-									foreach (var extension in _extensions)
+									catch (Exception ex)
 									{
-										await extension.PostHandleRequestAction?.Invoke(context);
+										await WriteInternalServerErrorAsync(ex.Message, context);
+									}
+									if (context != null && context.Response.OutputStream != null)
+									{
+										context.Response.OutputStream.Close();
 									}
 								}
-								catch (Exception ex)
+								catch(Exception ex)
 								{
-									handlerException = ex;
-								}
-								if (handlerException != null)
-								{
-									await WriteInternalServerErrorAsync(handlerException.Message, context);
-								}
-								if (context != null && context.Response.OutputStream != null)
-								{
-									context.Response.OutputStream.Close();
+									//TODO: log ex
 								}
 							});
 						}
@@ -163,20 +165,23 @@ namespace InterfaceRpc.Service
 
 		private async static Task WriteInternalServerErrorAsync(string message, HttpListenerContext context)
 		{
-			if (context == null || context.Response.OutputStream == null)
-			{
-				return;
-			}
-			if (String.IsNullOrWhiteSpace(message))
+			if (string.IsNullOrWhiteSpace(message))
 			{
 				message = "Internal Server Error";
 			}
-			var data = Encoding.UTF8.GetBytes(message);
-			context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
-			context.Response.StatusDescription = "Internal Server Error";
-			context.Response.ContentType = PlainTextContentType;
-			context.Response.ContentLength64 = data.Length;
-			await context.Response.OutputStream.WriteAsync(data, 0, data.Length);
+			try
+			{
+				var data = Encoding.UTF8.GetBytes(message);
+				context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+				context.Response.StatusDescription = "Internal Server Error";
+				context.Response.ContentType = PlainTextContentType;
+				context.Response.ContentLength64 = data.Length;
+				await context.Response.OutputStream.WriteAsync(data, 0, data.Length);
+			}
+			catch (Exception ex)
+			{
+				//TODO: Add logging
+			}
 		}
 
 		public void Stop()
