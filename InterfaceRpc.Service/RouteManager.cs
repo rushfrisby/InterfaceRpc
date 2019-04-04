@@ -67,7 +67,14 @@ namespace InterfaceRpc.Service
 			var response = new RouteResponse(serializer.DefaultContentType);
 			if (method.ReturnType != typeof(void))
 			{
-				response.Content = await serializer.SerializeAsync(result);
+				if (result != null)
+				{
+					response.Content = await serializer.SerializeAsync(result);
+				}
+				else
+				{
+					response.Content = new byte[0];
+				}
 			}
 			return response;
 		}
