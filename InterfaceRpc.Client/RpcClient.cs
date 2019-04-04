@@ -80,7 +80,7 @@ namespace InterfaceRpc.Client
 				{
 					errorMessage = reader.ReadToEnd();
 				}
-				throw new WebException("Service threw an exception while requesting {url}: " + errorMessage, wex);
+				throw new WebException($"Service threw an exception while requesting {url}: " + errorMessage, wex);
 			}
 
 			return result;

@@ -71,9 +71,13 @@ namespace InterfaceRpc.Service
 									{
 										foreach (var extension in _extensions)
 										{
-											if (await extension.PreHandleRequestAction?.Invoke(context))
+											var action = extension.PreHandleRequestAction;
+											if (action != null)
 											{
-												return;
+												if(await action.Invoke(context))
+												{
+													return;
+												}
 											}
 										}
 
@@ -81,7 +85,11 @@ namespace InterfaceRpc.Service
 
 										foreach (var extension in _extensions)
 										{
-											await extension.PostHandleRequestAction?.Invoke(context);
+											var action = extension.PostHandleRequestAction;
+											if(action != null)
+											{
+												await action.Invoke(context);
+											}
 										}
 									}
 									catch (Exception ex)
@@ -129,22 +137,18 @@ namespace InterfaceRpc.Service
 
 			var requestHandler = _routeManager.GetHandler(context.Request.RawUrl);
 			RouteResponse response = null;
-			Exception routeException = null;
 			try
 			{
 				response = await requestHandler(context);
+
 			}
 			catch (Exception ex)
 			{
-				routeException = ex;
-			}
-
-			if (routeException != null)
-			{
-				//TODO: Log routeException
-				await WriteInternalServerErrorAsync(routeException.Message, context);
+				//TODO: log ex
+				await WriteInternalServerErrorAsync(ex.Message, context);
 				return;
 			}
+
 			if (response == null)
 			{
 				//TODO: Log response
