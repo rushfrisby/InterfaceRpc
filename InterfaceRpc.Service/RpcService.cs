@@ -64,46 +64,34 @@ namespace InterfaceRpc.Service
 							await _listener.GetContextAsync().ContinueWith(async (t) =>
 							{
 								sem.Release();
-								try
+								var context = await t;
+
+								foreach (var extension in _extensions)
 								{
-									var context = await t;
-									try
+									var action = extension.PreHandleRequestAction;
+									if (action != null)
 									{
-										foreach (var extension in _extensions)
+										if(await action.Invoke(context))
 										{
-											var action = extension.PreHandleRequestAction;
-											if (action != null)
-											{
-												if(await action.Invoke(context))
-												{
-													return;
-												}
-											}
+											return;
 										}
-
-										await HandleRequest(context);
-
-										foreach (var extension in _extensions)
-										{
-											var action = extension.PostHandleRequestAction;
-											if(action != null)
-											{
-												await action.Invoke(context);
-											}
-										}
-									}
-									catch (Exception ex)
-									{
-										await WriteInternalServerErrorAsync(ex.Message, context);
-									}
-									if (context != null && context.Response.OutputStream != null)
-									{
-										context.Response.OutputStream.Close();
 									}
 								}
-								catch(Exception ex)
+
+								await HandleRequest(context);
+
+								foreach (var extension in _extensions)
 								{
-									//TODO: log ex
+									var action = extension.PostHandleRequestAction;
+									if(action != null)
+									{
+										await action.Invoke(context);
+									}
+								}
+
+								if (context != null && context.Response.OutputStream != null)
+								{
+									context.Response.OutputStream.Close();
 								}
 							});
 						}
