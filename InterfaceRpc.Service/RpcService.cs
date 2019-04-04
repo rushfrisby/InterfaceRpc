@@ -133,7 +133,7 @@ namespace InterfaceRpc.Service
 			catch (Exception ex)
 			{
 				//TODO: log ex
-				await WriteInternalServerErrorAsync(ex.Message, context);
+				await WriteInternalServerErrorAsync(ex.Message, context, ex);
 				return;
 			}
 
@@ -155,12 +155,29 @@ namespace InterfaceRpc.Service
 			}
 		}
 
-		private async static Task WriteInternalServerErrorAsync(string message, HttpListenerContext context)
+		private async Task WriteInternalServerErrorAsync(string message, HttpListenerContext context, Exception handlerException = null)
 		{
 			if (string.IsNullOrWhiteSpace(message))
 			{
 				message = "Internal Server Error";
 			}
+
+			foreach (var extension in _extensions)
+			{
+				var action = extension.InternalServerErrorAction;
+				if (action != null)
+				{
+					try
+					{
+						await action.Invoke(message, handlerException);
+					}
+					catch (Exception ex)
+					{
+						//TODO: Add logging
+					}
+				}
+			}
+
 			try
 			{
 				var data = Encoding.UTF8.GetBytes(message);

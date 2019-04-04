@@ -9,5 +9,7 @@ namespace InterfaceRpc.Service
 		public Func<HttpListenerContext, Task<bool>> PreHandleRequestAction { get; set; }
 
 		public Func<HttpListenerContext, Task> PostHandleRequestAction { get; set; }
+
+		public Func<string, Exception, Task> InternalServerErrorAction { get; set; }
 	}
 }
