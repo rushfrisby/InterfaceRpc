@@ -1,14 +1,14 @@
-﻿using System;
-using System.Net;
+﻿using Microsoft.AspNetCore.Http;
+using System;
 using System.Threading.Tasks;
 
 namespace InterfaceRpc.Service
 {
 	public class RpcServiceExtension
 	{
-		public Func<HttpListenerContext, Task<bool>> PreHandleRequestAction { get; set; }
+		public Func<HttpContext, Task<bool>> PreHandleRequestAction { get; set; }
 
-		public Func<HttpListenerContext, Task> PostHandleRequestAction { get; set; }
+		public Func<HttpContext, Task> PostHandleRequestAction { get; set; }
 
 		public Func<string, Exception, Task> InternalServerErrorAction { get; set; }
 	}

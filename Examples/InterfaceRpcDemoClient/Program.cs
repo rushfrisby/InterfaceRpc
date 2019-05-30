@@ -12,7 +12,7 @@ namespace InterfaceRpcDemoClient
 		{
 			var options = new RpcClientOptions
 			{
-				BaseAddress = "http://localhost:6000/",
+				BaseAddress = "https://localhost:44318/",
 				//Serializer = new ProtobufSerializer()
 			}
 			.AddConsoleLogger();

@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 using SerializerDotNet;
 
 namespace InterfaceRpc.Service
@@ -12,17 +12,17 @@ namespace InterfaceRpc.Service
 	{
 		private readonly MethodInfo[] _interfaceMethods;
 		private readonly Type _interfaceType;
-		private readonly T _implementation;
-		private readonly IDictionary<string, Func<HttpListenerContext, Task<RouteResponse>>> _routeHandlers;
+		private readonly IDictionary<string, Func<string, T, HttpContext, Task<RouteResponse>>> _routeHandlers;
+        private readonly RpcServiceOptions _options;
 
 		private static readonly MethodInfo _getRequestEntityMethod = typeof(SerializationHelper).GetMethod("GetRequestEntity", BindingFlags.Static | BindingFlags.NonPublic);
 
-		public RouteManager(T implementation)
+		public RouteManager(RpcServiceOptions options)
 		{
-			_implementation = implementation ?? throw new ArgumentNullException("T implementation is null");
 			_interfaceType = typeof(T);
 			_interfaceMethods = _interfaceType.GetMethods();
-			_routeHandlers = new Dictionary<string, Func<HttpListenerContext, Task<RouteResponse>>>();
+			_routeHandlers = new Dictionary<string, Func<string, T, HttpContext, Task<RouteResponse>>>();
+            _options = options ?? throw new ArgumentNullException(nameof(options));
 
 			foreach (var method in _interfaceMethods)
 			{
@@ -30,18 +30,18 @@ namespace InterfaceRpc.Service
 			}
 		}
 
-		private async Task<RouteResponse> MethodHandler(HttpListenerContext context)
+		private async Task<RouteResponse> MethodHandler(string methodName, T instance, HttpContext context)
 		{
-			var routeName = context.Request.RawUrl.Substring(1, context.Request.RawUrl.Length - 1);
-			var method = _interfaceMethods.FirstOrDefault(x => x.Name.Equals(routeName, StringComparison.OrdinalIgnoreCase));
+            var method = _interfaceMethods.FirstOrDefault(x => x.Name.Equals(methodName, StringComparison.OrdinalIgnoreCase));
 			if (method == null)
 			{
-				throw new NullReferenceException(string.Format("Could not find method corresponding to {0}", context.Request.RawUrl));
+				throw new NullReferenceException(string.Format("Could not find method corresponding to {0}", methodName));
 			}
 
 			var parameterValues = new List<object>();
 			var methodParameters = method.GetParameters();
-			var serializer = Serializer.GetSerializerFor(context.Request.ContentType);
+            var contentType = SerializationHelper.GetContentType(context.Request);
+            var serializer = Serializer.GetSerializerFor(contentType);
 
 			if (methodParameters.Any())
 			{
@@ -62,9 +62,9 @@ namespace InterfaceRpc.Service
 				}
 			}
 
-			var result = method.Invoke(_implementation, parameterValues.ToArray());
+			var result = method.Invoke(instance, parameterValues.ToArray());
 
-			var response = new RouteResponse(serializer.DefaultContentType);
+			var response = new RouteResponse(contentType);
 			if (method.ReturnType != typeof(void))
 			{
 				if (result != null)
@@ -123,7 +123,7 @@ namespace InterfaceRpc.Service
 			return _routeHandlers.ContainsKey(key);
 		}
 
-		public void AddHandler(string routeName, Func<HttpListenerContext, Task<RouteResponse>> handler)
+		public void AddHandler(string routeName, Func<string, T, HttpContext, Task<RouteResponse>> handler)
 		{
 			if (routeName == null)
 			{
@@ -134,7 +134,7 @@ namespace InterfaceRpc.Service
 				throw new ArgumentNullException(nameof(handler));
 			}
 
-			var key = "/" + routeName.Trim().ToLowerInvariant();
+			var key = routeName.Trim().ToLowerInvariant();
 			if (_routeHandlers.ContainsKey(key))
 			{
 				throw new ApplicationException(string.Format("A handler for the route \"{0}\" has already been added.", routeName));
@@ -142,7 +142,7 @@ namespace InterfaceRpc.Service
 			_routeHandlers.Add(key, handler);
 		}
 
-		public Func<HttpListenerContext, Task<RouteResponse>> GetHandler(string routeName)
+		public Func<string, T, HttpContext, Task<RouteResponse>> GetHandler(string routeName)
 		{
 			if (routeName == null)
 			{

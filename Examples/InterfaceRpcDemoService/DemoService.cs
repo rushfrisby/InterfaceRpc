@@ -1,6 +1,6 @@
 ﻿using InterfaceRpcDemoShared;
 using System;
-using System.Threading;
+using System.Threading.Tasks;
 
 namespace InterfaceRpcDemoService
 {
@@ -31,9 +31,9 @@ namespace InterfaceRpcDemoService
 			return $"{person.FirstName} is {age} years old";
 		}
 
-		public void Wait(int milliseconds)
-		{
-			Thread.Sleep(milliseconds);
+        public void Wait(int milliseconds)
+        {
+            Task.Delay(milliseconds).Wait();
 		}
 	}
 }

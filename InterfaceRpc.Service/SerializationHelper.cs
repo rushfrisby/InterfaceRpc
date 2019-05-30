@@ -1,21 +1,22 @@
-﻿using SerializerDotNet;
+﻿using Microsoft.AspNetCore.Http;
+using SerializerDotNet;
 using System.IO;
-using System.Net;
 
 namespace InterfaceRpc.Service
 {
 	internal class SerializationHelper
 	{
 		// There are no references to this method because it is called via reflection. Do not remove!
-		private static TResult GetRequestEntity<TResult>(HttpListenerContext context)
+		private static TResult GetRequestEntity<TResult>(HttpContext context)
 		{
 			byte[] result;
 			using (var ms = new MemoryStream())
 			{
-				context.Request.InputStream.CopyTo(ms);
+				context.Request.Body.CopyTo(ms);
 				result = ms.ToArray();
 			}
-			var serializer = Serializer.GetSerializerFor(context.Request.ContentType);
+            var contentType = GetContentType(context.Request);
+			var serializer = Serializer.GetSerializerFor(contentType);
 			return serializer.Deserialize<TResult>(result);
 		}
 
@@ -24,5 +25,12 @@ namespace InterfaceRpc.Service
 		{
 			return (T)o;
 		}
+
+        public static string GetContentType(HttpRequest request)
+        {
+            return !string.IsNullOrWhiteSpace(request.ContentType) ?
+                request.ContentType.Trim() :
+                Constants.DefaultContentType;
+        }
 	}
 }
