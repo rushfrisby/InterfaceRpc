@@ -2,7 +2,6 @@
 using InterfaceRpcDemoShared;
 using SerializerDotNet;
 using System;
-using System.Diagnostics;
 
 namespace InterfaceRpcDemoClient
 {
@@ -19,11 +18,13 @@ namespace InterfaceRpcDemoClient
 
 			var client = RpcClient<IDemoService>.Create(options);
 
-			Console.WriteLine("RPC Demo Client is waiting - Press any key to begin.");
+            RpcClient.SetAuthorization(client, "Bearer", "xyz...");
+
+            Console.WriteLine("RPC Demo Client is waiting - Press any key to begin.");
 			Console.ReadKey();
 
-			Console.WriteLine(client.GetAge("Rush", 36));
-			Console.WriteLine(client.GetPersonAge(new Person { Id=1, FirstName="Rush", LastName="Frisby" }, 36));
+			Console.WriteLine(client.GetAge("Rush", 37));
+			Console.WriteLine(client.GetPersonAge(new Person { Id=1, FirstName="Rush", LastName="Frisby" }, 37));
 
 			var echo = client.Echo("hello world");
 			Console.WriteLine($"Echo: {echo}");
@@ -31,14 +32,11 @@ namespace InterfaceRpcDemoClient
 			var now = client.GetDateTime();
 			Console.WriteLine($"Now: {now}");
 
-			var sw = new Stopwatch();
-			sw.Start();
-			client.Wait(2000);
-			sw.Stop();
-			Console.WriteLine($"Waited: {sw.Elapsed}");
+            var userName = client.GetUserName();
+            Console.WriteLine($"User Name: {userName}");
 
-			var person = client.EchoPerson(new Person { Id = 1, FirstName = "Rush", LastName = "Frisby" });
-			Console.WriteLine($"Person: Id={person.Id}, FName={person.FirstName}, LName={person.LastName}");
+            var person = client.EchoPerson(new Person { Id = 1, FirstName = "Rush", LastName = "Frisby" });
+            Console.WriteLine($"Person: Id={person.Id}, FName={person.FirstName}, LName={person.LastName}");
 
 			Console.WriteLine("Done. Press any key to exit.");
 			Console.ReadKey();

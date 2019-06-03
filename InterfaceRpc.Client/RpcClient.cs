@@ -8,6 +8,14 @@ using System.Reflection;
 
 namespace InterfaceRpc.Client
 {
+    public class RpcClient
+    {
+        public static void SetAuthorization<T>(T instance, string type, string credentials) where T : class
+        {
+            RpcClient<T>.SetAuthorization(instance, type, credentials);
+        }
+    }
+
 	public class RpcClient<T> : DispatchProxy where T : class
 	{
 		private string _baseAddress;
@@ -23,6 +31,9 @@ namespace InterfaceRpc.Client
 		private static IDictionary<int, MethodInfo> _cachedGenericDeserializeMethods = new Dictionary<int, MethodInfo>();
 		private static readonly object _locker = new object();
 
+        private string _authType;
+        private string _authCreds;
+
 		public RpcClient()
 		{
 			if (!typeof(T).IsInterface)
@@ -32,9 +43,9 @@ namespace InterfaceRpc.Client
 			_extensions = new List<RpcClientExtension>();
 		}
 
-		#region Private Methods
+        #region Private Methods
 
-		private byte[] Post<TSource>(string url, TSource source)
+        private byte[] Post<TSource>(string url, TSource source)
 		{
 			var request = (HttpWebRequest)WebRequest.Create(url);
 
@@ -51,6 +62,11 @@ namespace InterfaceRpc.Client
 			request.Method = "POST";
 			request.ContentType = _serializer.DefaultContentType;
 			request.ContentLength = data.Length;
+
+            if(!string.IsNullOrWhiteSpace(_authType) || !string.IsNullOrWhiteSpace(_authCreds))
+            {
+                request.Headers.Add("Authorization", $"{_authType} {_authCreds}".Trim());
+            }
 
 			using (var stream = request.GetRequestStream())
 			{
@@ -190,6 +206,17 @@ namespace InterfaceRpc.Client
 			((RpcClient<T>)proxy).SetParameters(options);
 			return (T)proxy;
 		}
+
+        internal void SetAuthorization(string type, string credentials)
+        {
+            _authType = type;
+            _authCreds = credentials;
+        }
+
+        public static void SetAuthorization(object instance, string type, string credentials)
+        {
+            ((RpcClient<T>)instance).SetAuthorization(type, credentials);
+        }
 
 		public static object GetTuple(MethodInfo method, object[] args)
 		{

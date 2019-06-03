@@ -73,10 +73,18 @@ namespace InterfaceRpc.Service
             {
                 var response = await handler(methodName, _instance, context);
 
-                context.Response.StatusCode = 200;
-                context.Response.ContentType = response.ContentType;
-                context.Response.ContentLength = response.Content.Length;
-                await context.Response.Body.WriteAsync(response.Content, 0, response.Content.Length);
+                if(response.NotAuthorized)
+                {
+                    context.Response.StatusCode = 401;
+                    context.Response.ContentType = response.ContentType;
+                }
+                else
+                {
+                    context.Response.StatusCode = 200;
+                    context.Response.ContentType = response.ContentType;
+                    context.Response.ContentLength = response.Content.Length;
+                    await context.Response.Body.WriteAsync(response.Content, 0, response.Content.Length);
+                }
             }
             catch(Exception ex)
             {

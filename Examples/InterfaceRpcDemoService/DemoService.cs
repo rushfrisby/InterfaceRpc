@@ -1,11 +1,19 @@
 ﻿using InterfaceRpcDemoShared;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using System;
-using System.Threading.Tasks;
 
 namespace InterfaceRpcDemoService
 {
-	public class DemoService : IDemoService
+    public class DemoService : IDemoService
 	{
+        private readonly IHttpContextAccessor _httpContextAccessor;
+
+        public DemoService(IHttpContextAccessor httpContextAccessor)
+        {
+            _httpContextAccessor = httpContextAccessor;
+        }
+
 		public string Echo(string input)
 		{
 			return input;
@@ -31,9 +39,16 @@ namespace InterfaceRpcDemoService
 			return $"{person.FirstName} is {age} years old";
 		}
 
-        public void Wait(int milliseconds)
+        [Authorize]
+        public string GetUserName()
         {
-            Task.Delay(milliseconds).Wait();
-		}
+            var firstNameClaim = _httpContextAccessor.HttpContext.User.FindFirst("FirstName");
+            var lastNameClaim = _httpContextAccessor.HttpContext.User.FindFirst("LastName");
+
+            var firstName = firstNameClaim != null && !string.IsNullOrWhiteSpace(firstNameClaim.Value) ? firstNameClaim.Value.Trim() : "First";
+            var lastName = lastNameClaim != null && !string.IsNullOrWhiteSpace(lastNameClaim.Value) ? lastNameClaim.Value.Trim() : "Last";
+
+            return $"{firstName} {lastName}";
+        }
 	}
 }

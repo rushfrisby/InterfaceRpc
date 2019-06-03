@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using SerializerDotNet;
 
@@ -36,11 +37,35 @@ namespace InterfaceRpc.Service
 			if (method == null)
 			{
 				throw new NullReferenceException(string.Format("Could not find method corresponding to {0}", methodName));
-			}
+            }
 
-			var parameterValues = new List<object>();
-			var methodParameters = method.GetParameters();
             var contentType = SerializationHelper.GetContentType(context.Request);
+            var response = new RouteResponse(contentType);
+
+            if (_options.AuthorizationScope == AuthorizationScope.AdHoc || _options.AuthorizationScope == AuthorizationScope.Required)
+            {
+                //check if the T instance has it
+                var instanceType = instance.GetType();
+                var hasAuthorizeAttribute = instanceType.GetCustomAttributes(typeof(AuthorizeAttribute), true).Any();
+                if (!hasAuthorizeAttribute)
+                {
+                    //check if the T instance method has it
+                    var instanceMethod = instanceType.GetMethods().FirstOrDefault(x => x.Name.Equals(methodName, StringComparison.OrdinalIgnoreCase));
+                    hasAuthorizeAttribute = instanceMethod.GetCustomAttributes(typeof(AuthorizeAttribute), true).Any();
+                }
+
+                if (_options.AuthorizationScope == AuthorizationScope.Required || hasAuthorizeAttribute)
+                {
+                    if (!context.User.Identity.IsAuthenticated)
+                    {
+                        response.NotAuthorized = true;
+                        return response;
+                    }
+                }
+            }
+
+            var parameterValues = new List<object>();
+			var methodParameters = method.GetParameters();
             var serializer = Serializer.GetSerializerFor(contentType);
 
 			if (methodParameters.Any())
@@ -64,7 +89,6 @@ namespace InterfaceRpc.Service
 
 			var result = method.Invoke(instance, parameterValues.ToArray());
 
-			var response = new RouteResponse(contentType);
 			if (method.ReturnType != typeof(void))
 			{
 				if (result != null)
