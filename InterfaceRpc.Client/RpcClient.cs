@@ -5,9 +5,18 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Reflection;
+using System.Threading.Tasks;
 
 namespace InterfaceRpc.Client
 {
+    public class RpcClient
+    {
+        public static void SetAuthorization<T>(T instance, string type, string credentials) where T : class
+        {
+            RpcClient<T>.SetAuthorization(instance, type, credentials);
+        }
+    }
+
 	public class RpcClient<T> : DispatchProxy where T : class
 	{
 		private string _baseAddress;
@@ -23,6 +32,10 @@ namespace InterfaceRpc.Client
 		private static IDictionary<int, MethodInfo> _cachedGenericDeserializeMethods = new Dictionary<int, MethodInfo>();
 		private static readonly object _locker = new object();
 
+        private RpcClientAuthorizationHeader _authorizationHeader;
+
+        private Func<RpcClientAuthorizationHeader> _setAuthorizationHeaderAction;
+
 		public RpcClient()
 		{
 			if (!typeof(T).IsInterface)
@@ -32,9 +45,9 @@ namespace InterfaceRpc.Client
 			_extensions = new List<RpcClientExtension>();
 		}
 
-		#region Private Methods
+        #region Private Methods
 
-		private byte[] Post<TSource>(string url, TSource source)
+        private byte[] Post<TSource>(string url, TSource source)
 		{
 			var request = (HttpWebRequest)WebRequest.Create(url);
 
@@ -51,6 +64,11 @@ namespace InterfaceRpc.Client
 			request.Method = "POST";
 			request.ContentType = _serializer.DefaultContentType;
 			request.ContentLength = data.Length;
+
+            if(!string.IsNullOrWhiteSpace(_authorizationHeader?.Type) || !string.IsNullOrWhiteSpace(_authorizationHeader?.Credentials))
+            {
+                request.Headers.Add("Authorization", $"{_authorizationHeader?.Type} {_authorizationHeader?.Credentials}".Trim());
+            }
 
 			using (var stream = request.GetRequestStream())
 			{
@@ -108,6 +126,7 @@ namespace InterfaceRpc.Client
 			_serializer = options.Serializer ?? new JsonSerializer();
 			_baseAddress = options.BaseAddress;
 			_extensions.AddRange(options.Extensions);
+            _setAuthorizationHeaderAction = options.SetAuthorizationHeaderAction;
 
 			//cache reflection that we will need during Invoke
 			_serializerType = _serializer.GetType();
@@ -118,7 +137,12 @@ namespace InterfaceRpc.Client
 
 		protected override object Invoke(MethodInfo method, object[] args)
 		{
-			var url = AddUrlPart(_baseAddress, method.Name);
+            if (_setAuthorizationHeaderAction != null)
+            {
+                _authorizationHeader = _setAuthorizationHeaderAction();
+            }
+
+            var url = AddUrlPart(_baseAddress, method.Name);
 			byte[] response = null;
 
 			var requestInfo = new RpcClientRequestInfo
@@ -133,21 +157,27 @@ namespace InterfaceRpc.Client
 				extension.PreSendRequestAction?.Invoke(requestInfo);
 			}
 
-			if (args.Length == 0)
-			{
-				response = Post<object>(url, null);
-			}
-			else if(args.Length == 1)
-			{
-				response = Post(url, args[0]);
-			}
-			else
-			{
-				response = Post(url, GetTuple(method, args));
-			}
+            if (args.Length == 0)
+            {
+                response = Post<object>(url, null);
+            }
+            else if (args.Length == 1)
+            {
+                response = Post(url, args[0]);
+            }
+            else
+            {
+                response = Post(url, GetTuple(method, args));
+            }
 
-			object result = null;
-			if (response != null && method.ReturnType != typeof(void))
+            var returnType = method.ReturnType;
+            if (returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(Task<>))
+            {
+                returnType = returnType.GetTypeInfo().GenericTypeArguments[0];
+            }
+
+            object result = null;
+			if (response != null && method.ReturnType != typeof(void) && method.ReturnType != typeof(Task))
 			{
 				MethodInfo genericDeserializeMethod;
 				var cacheKey = method.MetadataToken;
@@ -157,7 +187,7 @@ namespace InterfaceRpc.Client
 					{
 						if (!_cachedGenericDeserializeMethods.ContainsKey(cacheKey))
 						{
-							genericDeserializeMethod = _deserializeMethod.MakeGenericMethod(method.ReturnType);
+							genericDeserializeMethod = _deserializeMethod.MakeGenericMethod(returnType);
 							_cachedGenericDeserializeMethods.Add(cacheKey, genericDeserializeMethod);
 						}
 						else
@@ -181,15 +211,48 @@ namespace InterfaceRpc.Client
 				});
 			}
 
-			return result;
+            if(method.ReturnType == typeof(Task))
+            {
+                return Task.CompletedTask;
+            }
+            else if (method.ReturnType.IsGenericType && method.ReturnType.GetGenericTypeDefinition() == typeof(Task<>))
+            {
+                var taskFromResultMethod = typeof(Task).GetMethod("FromResult").MakeGenericMethod(returnType);
+                var task = taskFromResultMethod.Invoke(null, new object[] { result });
+                return task;
+            }
+
+            return result;
 		}
 
-		public static T Create(RpcClientOptions options)
+        public static T Create(string baseAddress)
+        {
+            return Create(new RpcClientOptions
+            {
+                BaseAddress = baseAddress
+            });
+        }
+
+        public static T Create(RpcClientOptions options)
 		{
 			object proxy = Create<T, RpcClient<T>>();
 			((RpcClient<T>)proxy).SetParameters(options);
 			return (T)proxy;
 		}
+
+        internal void SetAuthorization(string type, string credentials)
+        {
+            _authorizationHeader = new RpcClientAuthorizationHeader
+            {
+                Type = type,
+                Credentials = credentials
+            };
+        }
+
+        public static void SetAuthorization(object instance, string type, string credentials)
+        {
+            ((RpcClient<T>)instance).SetAuthorization(type, credentials);
+        }
 
 		public static object GetTuple(MethodInfo method, object[] args)
 		{

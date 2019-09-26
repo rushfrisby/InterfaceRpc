@@ -2,45 +2,49 @@
 using InterfaceRpcDemoShared;
 using SerializerDotNet;
 using System;
-using System.Diagnostics;
+using System.Threading.Tasks;
 
 namespace InterfaceRpcDemoClient
 {
 	class Program
 	{
-		static void Main(string[] args)
+		static async Task Main(string[] args)
 		{
 			var options = new RpcClientOptions
 			{
-				BaseAddress = "http://localhost:6000/",
+				BaseAddress = "https://localhost:44318/",
 				//Serializer = new ProtobufSerializer()
 			}
 			.AddConsoleLogger();
 
 			var client = RpcClient<IDemoService>.Create(options);
 
-			Console.WriteLine("RPC Demo Client is waiting - Press any key to begin.");
-			Console.ReadKey();
+            //RpcClient.SetAuthorization(client, "Bearer", "xyz...");
 
-			Console.WriteLine(client.GetAge("Rush", 36));
-			Console.WriteLine(client.GetPersonAge(new Person { Id=1, FirstName="Rush", LastName="Frisby" }, 36));
+            Console.WriteLine("RPC Demo Client is waiting - Press any key to begin.");
+            Console.ReadKey();
 
-			var echo = client.Echo("hello world");
-			Console.WriteLine($"Echo: {echo}");
+            await client.DoNothing();
 
-			var now = client.GetDateTime();
-			Console.WriteLine($"Now: {now}");
+            Console.WriteLine(client.GetAge("Rush", 37));
+            Console.WriteLine(client.GetPersonAge(new Person { Id = 1, FirstName = "Rush", LastName = "Frisby" }, 37));
 
-			var sw = new Stopwatch();
-			sw.Start();
-			client.Wait(2000);
-			sw.Stop();
-			Console.WriteLine($"Waited: {sw.Elapsed}");
+            var echo2 = client.Echo("hello world");
+            Console.WriteLine($"Echo: {echo2}");
 
-			var person = client.EchoPerson(new Person { Id = 1, FirstName = "Rush", LastName = "Frisby" });
-			Console.WriteLine($"Person: Id={person.Id}, FName={person.FirstName}, LName={person.LastName}");
+            var echo = await client.EchoAsync("test");
+            Console.WriteLine(echo);
 
-			Console.WriteLine("Done. Press any key to exit.");
+            var now = client.GetDateTime();
+            Console.WriteLine($"Now: {now}");
+
+            //var userName = client.GetUserName();
+            //Console.WriteLine($"User Name: {userName}");
+
+            var person = client.EchoPerson(new Person { Id = 1, FirstName = "Rush", LastName = "Frisby" });
+            Console.WriteLine($"Person: Id={person.Id}, FName={person.FirstName}, LName={person.LastName}");
+
+            Console.WriteLine("Done. Press any key to exit.");
 			Console.ReadKey();
 		}
 	}

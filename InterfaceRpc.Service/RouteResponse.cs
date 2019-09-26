@@ -14,5 +14,7 @@
         public string ContentType { get; set; }
 
         public byte[] Content { get; set; }
+
+        public bool NotAuthorized { get; set; }
     }
 }

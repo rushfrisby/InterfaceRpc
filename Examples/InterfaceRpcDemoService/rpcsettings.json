@@ -1,4 +1,0 @@
-﻿{
-	"WebServerPrefixes": [ "http://localhost:6000/" ],
-	"MaxConnections":  64
-}

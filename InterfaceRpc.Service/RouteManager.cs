@@ -1,9 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using SerializerDotNet;
 
 namespace InterfaceRpc.Service
@@ -12,17 +13,17 @@ namespace InterfaceRpc.Service
 	{
 		private readonly MethodInfo[] _interfaceMethods;
 		private readonly Type _interfaceType;
-		private readonly T _implementation;
-		private readonly IDictionary<string, Func<HttpListenerContext, Task<RouteResponse>>> _routeHandlers;
+		private readonly IDictionary<string, Func<string, T, HttpContext, Task<RouteResponse>>> _routeHandlers;
+        private readonly RpcServiceOptions<T> _options;
 
-		private static readonly MethodInfo _getRequestEntityMethod = typeof(SerializationHelper).GetMethod("GetRequestEntity", BindingFlags.Static | BindingFlags.NonPublic);
+		private static readonly MethodInfo _getRequestEntityMethod = typeof(SerializationHelper).GetMethod("GetRequestEntityAsync", BindingFlags.Static | BindingFlags.NonPublic);
 
-		public RouteManager(T implementation)
+		public RouteManager(RpcServiceOptions<T> options)
 		{
-			_implementation = implementation ?? throw new ArgumentNullException("T implementation is null");
 			_interfaceType = typeof(T);
 			_interfaceMethods = _interfaceType.GetMethods();
-			_routeHandlers = new Dictionary<string, Func<HttpListenerContext, Task<RouteResponse>>>();
+			_routeHandlers = new Dictionary<string, Func<string, T, HttpContext, Task<RouteResponse>>>();
+            _options = options ?? throw new ArgumentNullException(nameof(options));
 
 			foreach (var method in _interfaceMethods)
 			{
@@ -30,42 +31,83 @@ namespace InterfaceRpc.Service
 			}
 		}
 
-		private async Task<RouteResponse> MethodHandler(HttpListenerContext context)
+		private async Task<RouteResponse> MethodHandler(string methodName, T instance, HttpContext context)
 		{
-			var routeName = context.Request.RawUrl.Substring(1, context.Request.RawUrl.Length - 1);
-			var method = _interfaceMethods.FirstOrDefault(x => x.Name.Equals(routeName, StringComparison.OrdinalIgnoreCase));
+            var method = _interfaceMethods.FirstOrDefault(x => x.Name.Equals(methodName, StringComparison.OrdinalIgnoreCase));
 			if (method == null)
 			{
-				throw new NullReferenceException(string.Format("Could not find method corresponding to {0}", context.Request.RawUrl));
-			}
+				throw new NullReferenceException(string.Format("Could not find method corresponding to {0}", methodName));
+            }
 
-			var parameterValues = new List<object>();
+            var contentType = SerializationHelper.GetContentType(context.Request);
+            var response = new RouteResponse(contentType);
+
+            if (_options.AuthorizationHandler != null && _options.AuthorizationScope == AuthorizationScope.AdHoc || _options.AuthorizationScope == AuthorizationScope.Required)
+            {
+                //check if the T instance has it
+                var instanceType = instance.GetType();
+                var hasAuthorizeAttribute = instanceType.GetCustomAttributes(typeof(AuthorizeAttribute), true).Any();
+                if (!hasAuthorizeAttribute)
+                {
+                    //check if the T instance method has it
+                    var instanceMethod = instanceType.GetMethods().FirstOrDefault(x => x.Name.Equals(methodName, StringComparison.OrdinalIgnoreCase));
+                    hasAuthorizeAttribute = instanceMethod.GetCustomAttributes(typeof(AuthorizeAttribute), true).Any();
+                }
+
+                if (_options.AuthorizationScope == AuthorizationScope.Required || hasAuthorizeAttribute)
+                {
+                    var isAuthorized = _options.AuthorizationHandler(methodName, instance, context);
+                    if (!isAuthorized)
+                    {
+                        response.NotAuthorized = true;
+                        return response;
+                    }
+                }
+            }
+
+            var parameterValues = new List<object>();
 			var methodParameters = method.GetParameters();
-			var serializer = Serializer.GetSerializerFor(context.Request.ContentType);
+            var serializer = Serializer.GetSerializerFor(contentType);
 
-			if (methodParameters.Any())
-			{
-				object entity = null;
-				if (methodParameters.Count() == 1)
-				{
-					var greGenericMethod = _getRequestEntityMethod.MakeGenericMethod(methodParameters.First().ParameterType);
-					entity = greGenericMethod.Invoke(null, new object[] { context });
-					parameterValues.Add(entity);
-				}
-				else
-				{
-					var types = method.GetParameters().Select(x => x.ParameterType).ToArray();
-					var valueTupleType = GetTupleType(types);
-					var greGenericMethod = _getRequestEntityMethod.MakeGenericMethod(valueTupleType);
-					entity = greGenericMethod.Invoke(null, new object[] { context });
-					parameterValues.AddRange(TupleToEnumerable(entity));
-				}
-			}
+            if (methodParameters.Any())
+            {
+                object entity = null;
+                if (methodParameters.Count() == 1)
+                {
+                    var greGenericMethod = _getRequestEntityMethod.MakeGenericMethod(methodParameters.First().ParameterType);
+                    var task = (Task)greGenericMethod.Invoke(null, new object[] { context });
+                    await task.ConfigureAwait(false);
+                    var resultProperty = task.GetType().GetProperty("Result");
+                    entity = resultProperty.GetValue(task);
+                    parameterValues.Add(entity);
+                }
+                else
+                {
+                    var types = method.GetParameters().Select(x => x.ParameterType).ToArray();
+                    var valueTupleType = GetTupleType(types);
+                    var greGenericMethod = _getRequestEntityMethod.MakeGenericMethod(valueTupleType);
+                    var task = (Task)greGenericMethod.Invoke(null, new object[] { context });
+                    await task.ConfigureAwait(false);
+                    var resultProperty = task.GetType().GetProperty("Result");
+                    entity = resultProperty.GetValue(task);
 
-			var result = method.Invoke(_implementation, parameterValues.ToArray());
+                }
+            }
 
-			var response = new RouteResponse(serializer.DefaultContentType);
-			if (method.ReturnType != typeof(void))
+                var result = method.Invoke(instance, parameterValues.ToArray());
+            var isTask = method.ReturnType == typeof(Task);
+
+            if (method.ReturnType == typeof(Task))
+            {
+                await (Task)result;
+                return response;
+            }
+            else if(method.ReturnType.IsGenericType && method.ReturnType.GetGenericTypeDefinition() == typeof(Task<>))
+            {
+                result = await (dynamic)result;
+            }
+
+            if (method.ReturnType != typeof(void))
 			{
 				if (result != null)
 				{
@@ -123,7 +165,7 @@ namespace InterfaceRpc.Service
 			return _routeHandlers.ContainsKey(key);
 		}
 
-		public void AddHandler(string routeName, Func<HttpListenerContext, Task<RouteResponse>> handler)
+		public void AddHandler(string routeName, Func<string, T, HttpContext, Task<RouteResponse>> handler)
 		{
 			if (routeName == null)
 			{
@@ -134,7 +176,7 @@ namespace InterfaceRpc.Service
 				throw new ArgumentNullException(nameof(handler));
 			}
 
-			var key = "/" + routeName.Trim().ToLowerInvariant();
+			var key = routeName.Trim().ToLowerInvariant();
 			if (_routeHandlers.ContainsKey(key))
 			{
 				throw new ApplicationException(string.Format("A handler for the route \"{0}\" has already been added.", routeName));
@@ -142,7 +184,7 @@ namespace InterfaceRpc.Service
 			_routeHandlers.Add(key, handler);
 		}
 
-		public Func<HttpListenerContext, Task<RouteResponse>> GetHandler(string routeName)
+		public Func<string, T, HttpContext, Task<RouteResponse>> GetHandler(string routeName)
 		{
 			if (routeName == null)
 			{

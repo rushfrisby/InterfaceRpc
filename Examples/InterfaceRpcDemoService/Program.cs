@@ -1,35 +1,17 @@
-﻿using InterfaceRpc.Service;
-using InterfaceRpcDemoShared;
-using System;
-using InterfaceRpc.Service.Authentication;
-using System.Security.Principal;
+﻿using Microsoft.AspNetCore;
+using Microsoft.AspNetCore.Hosting;
 
 namespace InterfaceRpcDemoService
 {
-	class Program
-	{
-		private static IPrincipal _user;
+    public class Program
+    {
+        public static void Main(string[] args)
+        {
+            CreateWebHostBuilder(args).Build().Run();
+        }
 
-		public static void Main(string[] args)
-		{
-			var rpcService = new RpcService<IDemoService>(new DemoService());
-
-			rpcService
-				.AddUrlConsoleLogger()
-				.AddAuthentication(new AuthenticationSettings
-				{
-					Domain = "",
-					Audience = "",
-					Scheme = "",
-					OnlySetUser = true,
-					SetUserAction = x => _user = x
-				})
-				.Start();
-
-			Console.WriteLine("RPC Demo Service is running - Press any key to stop.");
-			Console.ReadKey();
-
-			rpcService.Stop();
-		}
-	}
+        public static IWebHostBuilder CreateWebHostBuilder(string[] args) =>
+            WebHost.CreateDefaultBuilder(args)
+                .UseStartup<Startup>();
+    }
 }

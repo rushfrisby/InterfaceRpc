@@ -1,4 +1,5 @@
 ﻿using SerializerDotNet;
+using System;
 using System.Collections.Generic;
 
 namespace InterfaceRpc.Client
@@ -10,5 +11,7 @@ namespace InterfaceRpc.Client
 		public ISerializer Serializer { get; set; } = new JsonSerializer();
 
 		public List<RpcClientExtension> Extensions { get; set; } = new List<RpcClientExtension>();
-	}
+
+        public Func<RpcClientAuthorizationHeader> SetAuthorizationHeaderAction { get; set; }
+    }
 }
