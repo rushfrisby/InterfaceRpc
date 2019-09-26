@@ -16,7 +16,7 @@ namespace InterfaceRpc.Service
 		private readonly IDictionary<string, Func<string, T, HttpContext, Task<RouteResponse>>> _routeHandlers;
         private readonly RpcServiceOptions<T> _options;
 
-		private static readonly MethodInfo _getRequestEntityMethod = typeof(SerializationHelper).GetMethod("GetRequestEntity", BindingFlags.Static | BindingFlags.NonPublic);
+		private static readonly MethodInfo _getRequestEntityMethod = typeof(SerializationHelper).GetMethod("GetRequestEntityAsync", BindingFlags.Static | BindingFlags.NonPublic);
 
 		public RouteManager(RpcServiceOptions<T> options)
 		{
@@ -69,26 +69,32 @@ namespace InterfaceRpc.Service
 			var methodParameters = method.GetParameters();
             var serializer = Serializer.GetSerializerFor(contentType);
 
-			if (methodParameters.Any())
-			{
-				object entity = null;
-				if (methodParameters.Count() == 1)
-				{
-					var greGenericMethod = _getRequestEntityMethod.MakeGenericMethod(methodParameters.First().ParameterType);
-					entity = greGenericMethod.Invoke(null, new object[] { context });
-					parameterValues.Add(entity);
-				}
-				else
-				{
-					var types = method.GetParameters().Select(x => x.ParameterType).ToArray();
-					var valueTupleType = GetTupleType(types);
-					var greGenericMethod = _getRequestEntityMethod.MakeGenericMethod(valueTupleType);
-					entity = greGenericMethod.Invoke(null, new object[] { context });
-					parameterValues.AddRange(TupleToEnumerable(entity));
-				}
-			}
+            if (methodParameters.Any())
+            {
+                object entity = null;
+                if (methodParameters.Count() == 1)
+                {
+                    var greGenericMethod = _getRequestEntityMethod.MakeGenericMethod(methodParameters.First().ParameterType);
+                    var task = (Task)greGenericMethod.Invoke(null, new object[] { context });
+                    await task.ConfigureAwait(false);
+                    var resultProperty = task.GetType().GetProperty("Result");
+                    entity = resultProperty.GetValue(task);
+                    parameterValues.Add(entity);
+                }
+                else
+                {
+                    var types = method.GetParameters().Select(x => x.ParameterType).ToArray();
+                    var valueTupleType = GetTupleType(types);
+                    var greGenericMethod = _getRequestEntityMethod.MakeGenericMethod(valueTupleType);
+                    var task = (Task)greGenericMethod.Invoke(null, new object[] { context });
+                    await task.ConfigureAwait(false);
+                    var resultProperty = task.GetType().GetProperty("Result");
+                    entity = resultProperty.GetValue(task);
 
-			var result = method.Invoke(instance, parameterValues.ToArray());
+                }
+            }
+
+                var result = method.Invoke(instance, parameterValues.ToArray());
             var isTask = method.ReturnType == typeof(Task);
 
             if (method.ReturnType == typeof(Task))
