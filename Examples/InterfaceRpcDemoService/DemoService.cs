@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using System;
+using System.Threading.Tasks;
 
 namespace InterfaceRpcDemoService
 {
@@ -9,9 +10,13 @@ namespace InterfaceRpcDemoService
 	{
         private readonly IHttpContextAccessor _httpContextAccessor;
 
+        private readonly int InstanceId;
+        private static readonly Random _random = new Random();
+
         public DemoService(IHttpContextAccessor httpContextAccessor)
         {
             _httpContextAccessor = httpContextAccessor;
+            InstanceId = _random.Next(int.MinValue, int.MaxValue);
         }
 
 		public string Echo(string input)
@@ -50,5 +55,16 @@ namespace InterfaceRpcDemoService
 
             return $"{firstName} {lastName}";
         }
-	}
+
+        public async Task<string> EchoAsync(string input)
+        {
+            await Task.Delay(1);
+            return input;
+        }
+
+        public async Task DoNothing()
+        {
+            await Task.Delay(1);
+        }
+    }
 }

@@ -12,6 +12,6 @@ namespace InterfaceRpc.Client
 
 		public List<RpcClientExtension> Extensions { get; set; } = new List<RpcClientExtension>();
 
-        public Action<string, string> SetAuthorizationAction { get; set; }
+        public Func<RpcClientAuthorizationHeader> SetAuthorizationHeaderAction { get; set; }
     }
 }

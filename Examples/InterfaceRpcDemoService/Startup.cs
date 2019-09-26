@@ -39,7 +39,10 @@ namespace InterfaceRpcDemoService
 
             app.UseAuthentication();
 
-            app.UseRpcService<IDemoService>();
+            app.UseRpcService<IDemoService>(x =>
+            
+                x.ServiceFactory = () => app.ApplicationServices.GetService<IDemoService>()
+            );
 
             app.Run(async (context) =>
             {

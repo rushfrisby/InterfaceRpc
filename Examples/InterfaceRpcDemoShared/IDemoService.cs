@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading.Tasks;
 
 namespace InterfaceRpcDemoShared
 {
@@ -15,5 +16,9 @@ namespace InterfaceRpcDemoShared
 		string GetPersonAge(Person person, int age);
 
         string GetUserName();
-	}
+
+        Task<string> EchoAsync(string input);
+
+        Task DoNothing();
+    }
 }

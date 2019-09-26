@@ -14,11 +14,11 @@ namespace InterfaceRpc.Service
 		private readonly MethodInfo[] _interfaceMethods;
 		private readonly Type _interfaceType;
 		private readonly IDictionary<string, Func<string, T, HttpContext, Task<RouteResponse>>> _routeHandlers;
-        private readonly RpcServiceOptions _options;
+        private readonly RpcServiceOptions<T> _options;
 
 		private static readonly MethodInfo _getRequestEntityMethod = typeof(SerializationHelper).GetMethod("GetRequestEntity", BindingFlags.Static | BindingFlags.NonPublic);
 
-		public RouteManager(RpcServiceOptions options)
+		public RouteManager(RpcServiceOptions<T> options)
 		{
 			_interfaceType = typeof(T);
 			_interfaceMethods = _interfaceType.GetMethods();
@@ -42,7 +42,7 @@ namespace InterfaceRpc.Service
             var contentType = SerializationHelper.GetContentType(context.Request);
             var response = new RouteResponse(contentType);
 
-            if (_options.AuthorizationScope == AuthorizationScope.AdHoc || _options.AuthorizationScope == AuthorizationScope.Required)
+            if (_options.AuthorizationHandler != null && _options.AuthorizationScope == AuthorizationScope.AdHoc || _options.AuthorizationScope == AuthorizationScope.Required)
             {
                 //check if the T instance has it
                 var instanceType = instance.GetType();
@@ -56,7 +56,8 @@ namespace InterfaceRpc.Service
 
                 if (_options.AuthorizationScope == AuthorizationScope.Required || hasAuthorizeAttribute)
                 {
-                    if (!context.User.Identity.IsAuthenticated)
+                    var isAuthorized = _options.AuthorizationHandler(methodName, instance, context);
+                    if (!isAuthorized)
                     {
                         response.NotAuthorized = true;
                         return response;
@@ -88,8 +89,19 @@ namespace InterfaceRpc.Service
 			}
 
 			var result = method.Invoke(instance, parameterValues.ToArray());
+            var isTask = method.ReturnType == typeof(Task);
 
-			if (method.ReturnType != typeof(void))
+            if (method.ReturnType == typeof(Task))
+            {
+                await (Task)result;
+                return response;
+            }
+            else if(method.ReturnType.IsGenericType && method.ReturnType.GetGenericTypeDefinition() == typeof(Task<>))
+            {
+                result = await (dynamic)result;
+            }
+
+            if (method.ReturnType != typeof(void))
 			{
 				if (result != null)
 				{
