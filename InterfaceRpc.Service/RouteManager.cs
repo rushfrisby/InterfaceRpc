@@ -1,11 +1,11 @@
-﻿using System;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using SerializerDotNet;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
-using SerializerDotNet;
 
 namespace InterfaceRpc.Service
 {
@@ -45,17 +45,20 @@ namespace InterfaceRpc.Service
 
             if (_options.AuthorizationHandler != null && _options.AuthorizationScope == AuthorizationScope.AdHoc || _options.AuthorizationScope == AuthorizationScope.Required)
             {
-                //check if the T instance has it
-                var instanceType = instance.GetType();
-                var hasAuthorizeAttribute = instanceType.GetCustomAttributes(typeof(AuthorizeAttribute), true).Any();
-                if (!hasAuthorizeAttribute)
+                var hasAuthorizeAttribute = false;
+                if (_options.AuthorizationScope == AuthorizationScope.AdHoc)
                 {
-                    //check if the T instance method has it
-                    var instanceMethod = instanceType.GetMethods().FirstOrDefault(x => x.Name.Equals(methodName, StringComparison.OrdinalIgnoreCase));
-                    hasAuthorizeAttribute = instanceMethod.GetCustomAttributes(typeof(AuthorizeAttribute), true).Any();
+                    //check if the T instance has it
+                    var instanceType = instance.GetType();
+                    hasAuthorizeAttribute = instanceType.GetCustomAttributes(typeof(AuthorizeAttribute), true).Any();
+                    if (!hasAuthorizeAttribute)
+                    {
+                        //check if the T instance method has it
+                        var instanceMethod = instanceType.GetMethods().FirstOrDefault(x => x.Name.Equals(methodName, StringComparison.OrdinalIgnoreCase));
+                        hasAuthorizeAttribute = instanceMethod.GetCustomAttributes(typeof(AuthorizeAttribute), true).Any();
+                    }
                 }
-
-                if (_options.AuthorizationScope == AuthorizationScope.Required || hasAuthorizeAttribute)
+                if (hasAuthorizeAttribute || _options.AuthorizationScope == AuthorizationScope.Required)
                 {
                     var isAuthorized = _options.AuthorizationHandler(methodName, instance, context);
                     if (!isAuthorized)
@@ -205,7 +208,7 @@ namespace InterfaceRpc.Service
                 return true;
             });
 
-            var childInterfaces = parentType.FindInterfaces(new TypeFilter(typeFilterFunction), null);            
+            var childInterfaces = parentType.FindInterfaces(new TypeFilter(typeFilterFunction), null);
 
             if (childInterfaces != null && childInterfaces.Length > 0)
             {
