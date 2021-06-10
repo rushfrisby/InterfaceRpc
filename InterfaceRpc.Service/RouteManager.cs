@@ -78,7 +78,17 @@ namespace InterfaceRpc.Service
                 object entity = null;
                 if (methodParameters.Count() == 1)
                 {
-                    var greGenericMethod = _getRequestEntityMethod.MakeGenericMethod(methodParameters.First().ParameterType);
+                    MethodInfo greGenericMethod;
+                    try
+                    {
+                        greGenericMethod = _getRequestEntityMethod.MakeGenericMethod(methodParameters.First().ParameterType);
+                    }
+                    catch (Exception)
+                    {
+                        //client probably disconnected
+                        response.Content = new byte[0];
+                        return response;
+                    }
                     var task = (Task)greGenericMethod.Invoke(null, new object[] { context });
                     await task.ConfigureAwait(false);
                     var resultProperty = task.GetType().GetProperty("Result");
@@ -89,7 +99,17 @@ namespace InterfaceRpc.Service
                 {
                     var types = method.GetParameters().Select(x => x.ParameterType).ToArray();
                     var valueTupleType = GetTupleType(types);
-                    var greGenericMethod = _getRequestEntityMethod.MakeGenericMethod(valueTupleType);
+                    MethodInfo greGenericMethod;
+                    try
+                    {
+                        greGenericMethod = _getRequestEntityMethod.MakeGenericMethod(valueTupleType);
+                    }
+                    catch (Exception)
+                    {
+                        //client probably disconnected
+                        response.Content = new byte[0];
+                        return response;
+                    }
                     var task = (Task)greGenericMethod.Invoke(null, new object[] { context });
                     await task.ConfigureAwait(false);
                     var resultProperty = task.GetType().GetProperty("Result");
@@ -138,8 +158,8 @@ namespace InterfaceRpc.Service
             var valueTupleCreateMethod = typeof(ValueTuple).GetMethods().FirstOrDefault(x => x.Name == "Create" && x.GetParameters().Count() == types.Length);
             if (valueTupleCreateMethod == null)
             {
-                //could happen if there are more than 8 arguments
-                throw new ApplicationException("Cannot deserialize this method's arguments. Try cutting the number of arguments down to 8 or less.");
+                //could happen if there are more than 8 parameters
+                throw new ApplicationException("Cannot deserialize this method's parameters. The maximum number of parameters allowed is 8.");
             }
             var genericValueTupleCreateMethod = valueTupleCreateMethod.MakeGenericMethod(types);
             var dummyValues = new List<object>();

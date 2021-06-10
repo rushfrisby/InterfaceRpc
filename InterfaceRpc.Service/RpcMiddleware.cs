@@ -2,8 +2,8 @@
 using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace InterfaceRpc.Service
 {
@@ -20,13 +20,13 @@ namespace InterfaceRpc.Service
             _next = next;
             _options = options ?? new RpcServiceOptions<T>();
 
-            if(_routeManagers.Values.Any(x => string.Equals(x.Item1.Prefix, options.Prefix, StringComparison.OrdinalIgnoreCase)))
+            if (_routeManagers.Values.Any(x => string.Equals(x.Item1.Prefix, options.Prefix, StringComparison.OrdinalIgnoreCase)))
             {
                 throw new ApplicationException($"There is already an RPC service which handles requests with the prefix \"{options.Prefix ?? "null"}\"");
             }
 
             var instanceType = typeof(T);
-            if(!_routeManagers.ContainsKey(instanceType))
+            if (!_routeManagers.ContainsKey(instanceType))
             {
                 _routeManagers.Add(instanceType, new Tuple<RpcServiceOptions<T>, object>(options, new RouteManager<T>(options)));
             }
@@ -52,13 +52,13 @@ namespace InterfaceRpc.Service
                 methodName = path[1];
             }
 
-            if(!string.Equals(prefix, _options.Prefix, StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(prefix, _options.Prefix, StringComparison.OrdinalIgnoreCase))
             {
                 await _next.Invoke(context);
                 return;
             }
 
-            if(!_routeManager.ContainsHandler(methodName))
+            if (!_routeManager.ContainsHandler(methodName))
             {
                 await _next.Invoke(context);
                 return;
@@ -69,7 +69,7 @@ namespace InterfaceRpc.Service
 
             var response = await handler(methodName, instance, context);
 
-            if(response.NotAuthorized)
+            if (response.NotAuthorized)
             {
                 context.Response.StatusCode = 401;
                 context.Response.ContentType = response.ContentType;
@@ -80,7 +80,10 @@ namespace InterfaceRpc.Service
                 context.Response.ContentType = response.ContentType;
                 var length = response.Content != null ? response.Content.Length : 0;
                 context.Response.ContentLength = length;
-                await context.Response.Body.WriteAsync(response.Content, 0, length);
+                if (length > 0)
+                {
+                    await context.Response.Body.WriteAsync(response.Content, 0, length);
+                }
             }
         }
     }

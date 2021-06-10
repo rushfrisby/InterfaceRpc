@@ -5,15 +5,15 @@ using System.Threading.Tasks;
 
 namespace InterfaceRpc.Service
 {
-	internal class SerializationHelper
-	{
-		// There are no references to this method because it is called via reflection. Do not remove!
+    internal class SerializationHelper
+    {
+        // There are no references to this method because it is called via reflection. Do not remove!
         private static async Task<TResult> GetRequestEntityAsync<TResult>(HttpContext context)
         {
             byte[] result;
             using (var ms = new MemoryStream())
             {
-                await context.Request.Body.CopyToAsync(ms);
+                await context.Request.Body.CopyToAsync(ms, 81920, context.RequestAborted);
                 result = ms.ToArray();
             }
 
@@ -24,9 +24,9 @@ namespace InterfaceRpc.Service
 
         // There are no references to this method because it is called via reflection. Do not remove!
         public static T Cast<T>(object o)
-		{
-			return (T)o;
-		}
+        {
+            return (T)o;
+        }
 
         public static string GetContentType(HttpRequest request)
         {
@@ -34,5 +34,5 @@ namespace InterfaceRpc.Service
                 request.ContentType.Trim() :
                 Constants.DefaultContentType;
         }
-	}
+    }
 }
